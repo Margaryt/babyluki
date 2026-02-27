@@ -8,10 +8,10 @@
     "express": "5.2.1"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "@types/cors": "2.8.19",
+    "@types/express": "5.0.6",
+    "ts-node": "10.9.2",
+    "typescript": "5.9.3"
   },
   "scripts": {
     "start:dev": "npx ts-node src/server.ts"
