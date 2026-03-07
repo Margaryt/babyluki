@@ -1,1 +1,1 @@
-// Sleep routes
+/** Sleep routes. */

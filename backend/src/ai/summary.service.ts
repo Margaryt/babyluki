@@ -1,1 +1,1 @@
-// Summary service
+/** AI-powered daily summary generation. */

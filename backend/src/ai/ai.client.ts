@@ -1,1 +1,1 @@
-// AI client
+/** AI provider client setup and configuration. */

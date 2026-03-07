@@ -4,16 +4,27 @@
   "main": "src/app.ts",
   "license": "MIT",
   "dependencies": {
+    "@prisma/client": "6.6.0",
     "cors": "2.8.6",
+    "dotenv": "16.5.0",
     "express": "5.2.1"
   },
   "devDependencies": {
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
+    "prisma": "6.6.0",
     "ts-node": "10.9.2",
+    "tsx": "4.19.4",
     "typescript": "5.9.3"
   },
   "scripts": {
-    "start:dev": "npx ts-node src/server.ts"
+    "start:dev": "tsx watch src/server.ts",
+    "db:migrate": "npx prisma migrate dev",
+    "db:studio": "npx prisma studio",
+    "db:seed": "npx prisma db seed",
+    "db:reset": "npx prisma migrate reset"
+  },
+  "prisma": {
+    "seed": "tsx src/db/seed.ts"
   }
 }

@@ -1,1 +1,1 @@
-// Config index
+export { env } from './env';

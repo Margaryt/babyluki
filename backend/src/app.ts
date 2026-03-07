@@ -1,3 +1,4 @@
+/** Express application setup — middleware and route registration. */
 import express from 'express';
 import cors from 'cors';
 import feedingRoutes from './modules/feeding/feeding.routes';

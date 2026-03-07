@@ -1,1 +1,1 @@
-// AI types
+/** AI module type definitions. */

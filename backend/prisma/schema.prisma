@@ -1,1 +1,70 @@
-// Prisma schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Slice 1: no auth, no user model.
+// When we add auth later, we add a User model and a userId FK here.
+model Baby {
+  id        String   @id @default(uuid())
+  name      String
+  birthDate DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  feedings Feeding[]
+  sleeps   Sleep[]
+  nappies  Nappy[]
+}
+
+model Feeding {
+  id        String      @id @default(uuid())
+  babyId    String
+  baby      Baby        @relation(fields: [babyId], references: [id])
+  startedAt DateTime
+  endedAt   DateTime? // nullable — feeding might still be in progress
+  type      FeedingType
+  notes     String?
+  createdAt DateTime    @default(now())
+
+  @@index([babyId, startedAt])
+}
+
+enum FeedingType {
+  BREAST
+  BOTTLE
+}
+
+model Sleep {
+  id        String   @id @default(uuid())
+  babyId    String
+  baby      Baby     @relation(fields: [babyId], references: [id])
+  startedAt DateTime
+  endedAt   DateTime? // nullable — sleep might still be in progress
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  @@index([babyId, startedAt])
+}
+
+model Nappy {
+  id        String    @id @default(uuid())
+  babyId    String
+  baby      Baby      @relation(fields: [babyId], references: [id])
+  changedAt DateTime
+  type      NappyType
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  @@index([babyId, changedAt])
+}
+
+enum NappyType {
+  WET
+  DIRTY
+  MIXED
+}

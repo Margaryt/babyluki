@@ -1,1 +1,1 @@
-// Time utilities
+/** Shared time/date utilities. */

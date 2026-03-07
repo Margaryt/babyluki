@@ -1,1 +1,1 @@
-// Sleep types
+/** Sleep type definitions. */
