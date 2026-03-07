@@ -1,1 +1,1 @@
-// Logger utility
+/** Application logger. */

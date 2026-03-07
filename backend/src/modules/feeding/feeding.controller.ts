@@ -1,32 +1,41 @@
-// Feeding controller
+/** Feeding controller — handles HTTP requests and delegates to the service layer. */
 import { Request, Response } from 'express';
-import { createFeeding } from './feeding.service';
+import { createFeeding, getFeedings } from './feeding.service';
 import { CreateFeedingRequest } from './feeding.types';
 
 /**
- * Create a new feeding entry.
- *
- * Attempts to create a feeding using the request body and returns the created record.
- *
- * TO DO: Implement robust error handling:
- * - Prefer a `Result`/`neverthrow` pattern for predictable errors instead of throwing.
- * - Map validation failures to `400 Bad Request` and provide details.
- * - Translate domain-specific errors (e.g. conflicts) to appropriate 4xx codes.
- * - Log unexpected errors and return `500 Internal Server Error` when necessary.
- *
- * @param req - Express `Request` with a `CreateFeedingRequest` body
- * @param res - Express `Response` used to send the created feeding or an error
- * @returns Promise<void>
+ * POST /:babyId
+ * Creates a new feeding entry for the given baby.
  */
-export const postFeeding = async(
-  req: Request<{}, {}, CreateFeedingRequest>,
+export const postFeeding = async (
+  req: Request<{ babyId: string }, {}, CreateFeedingRequest>,
   res: Response
 ) => {
   try {
-    const feeding = await createFeeding(req.body);
+    const { babyId } = req.params;
+    const feeding = await createFeeding({ ...req.body, babyId });
     res.status(201).json(feeding);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create feeding' });
   }
-}
+};
+
+/**
+ * GET /:babyId?date=YYYY-MM-DD
+ * Returns all feedings for a baby on a given date. Defaults to today.
+ */
+export const getFeedingsByDate = async (
+  req: Request<{ babyId: string }, {}, {}, { date?: string }>,
+  res: Response
+) => {
+  try {
+    const { babyId } = req.params;
+    const date = req.query.date ? new Date(req.query.date) : new Date();
+    const feedings = await getFeedings(babyId, date);
+    res.json(feedings);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get feedings' });
+  }
+};

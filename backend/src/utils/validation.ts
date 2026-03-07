@@ -1,1 +1,1 @@
-// Validation utilities
+/** Shared validation utilities. */

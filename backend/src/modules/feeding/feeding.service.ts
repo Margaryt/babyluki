@@ -1,23 +1,19 @@
-// Feeding service
-import { CreateFeedingRequest, Feeding } from './feeding.types';
-import { saveFeeding } from './feeding.db';
+/** Feeding service — domain logic sitting between controllers and the database layer. */
+import { CreateFeedingInput } from './feeding.types';
+import { saveFeeding, getFeedingsByBabyAndDate } from './feeding.db';
+import { Feeding as PrismaFeeding } from '@prisma/client';
 
+/** Persists a new feeding entry. */
 export async function createFeeding(
-  input: CreateFeedingRequest
-): Promise<Feeding> {
-  // TO DO: Validate domain rules here later (not controller)
-  
-  const feeding: Feeding = {
-    id: crypto.randomUUID(),
-    startedAt: input.startedAt,
-    endedAt: input.endedAt,
-    type: input.type,
-    notes: input.notes,
-    createdAt: new Date().toISOString(),
-  };
+  input: CreateFeedingInput
+): Promise<PrismaFeeding> {
+  return saveFeeding(input);
+}
 
-  // For now this just echoes back
-  await saveFeeding(feeding);
-
-  return feeding;
+/** Returns all feedings for a baby on a given date. */
+export async function getFeedings(
+  babyId: string,
+  date: Date
+): Promise<PrismaFeeding[]> {
+  return getFeedingsByBabyAndDate(babyId, date);
 }
