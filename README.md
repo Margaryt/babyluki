@@ -20,7 +20,7 @@ This is a monorepo with the following structure:
 - `frontend/` — Mobile app (coming soon)
 - `docs/` — Documentation
 
-The backend uses Prisma as the ORM with PostgreSQL. The data model has four core entities: Baby, Feeding, Sleep, and Nappy. All events are linked to a Baby, and when auth is added later, babies will be linked to users.
+The backend uses Prisma as the ORM with PostgreSQL. The data model centres on a Baby entity. Feedings use a session/segment pattern — a FeedingSession groups one or more FeedingSegments (e.g. left breast → right breast → bottle top-up). Sleep and Nappy are simpler flat models. When auth is added later, babies will be linked to users.
 
 ## Building in thin slices
 
@@ -61,22 +61,44 @@ npm run start:dev
 
 The API runs on `http://localhost:3000`. To browse the database visually, run `npm run db:studio` (opens at `http://localhost:5555`).
 
-### Example requests
+### Example: log a full feeding session
 
-Create a feeding:
+The baby ID below is the seeded test baby (Luki).
 
 ```bash
-curl -X POST http://localhost:3000/feeding/00000000-0000-0000-0000-000000000001 \
+BABY=00000000-0000-0000-0000-000000000001
+
+# 1. Start a feeding session
+curl -s -X POST http://localhost:3000/feeding/$BABY | jq .
+# → copy the "id" from the response into SESSION below
+
+SESSION=<session-id>
+
+# 2. Start left breast
+curl -s -X POST http://localhost:3000/feeding/$BABY/$SESSION/segment \
   -H "Content-Type: application/json" \
-  -d '{
-    "startedAt": "2026-03-07T09:00:00.000Z",
-    "endedAt": "2026-03-07T09:20:00.000Z",
-    "type": "BREAST"
-  }'
-```
+  -d '{"side":"LEFT"}' | jq .
+# → copy the segment "id" into SEG below
 
-Get today's feedings:
+SEG=<segment-id>
 
-```bash
-curl http://localhost:3000/feeding/00000000-0000-0000-0000-000000000001
+# 3. Stop left breast (baby is done, time to burp)
+curl -s -X PATCH http://localhost:3000/feeding/$BABY/$SESSION/segment/$SEG/stop | jq .
+
+# 4. Start right breast
+curl -s -X POST http://localhost:3000/feeding/$BABY/$SESSION/segment \
+  -H "Content-Type: application/json" \
+  -d '{"side":"RIGHT"}' | jq .
+
+# 5. Stop right breast, then add a bottle top-up
+# ... same stop pattern, then:
+curl -s -X POST http://localhost:3000/feeding/$BABY/$SESSION/segment \
+  -H "Content-Type: application/json" \
+  -d '{"side":"BOTTLE","volumeMl":20}' | jq .
+
+# 6. End the session
+curl -s -X PATCH http://localhost:3000/feeding/$BABY/$SESSION/end | jq .
+
+# 7. View today's sessions
+curl -s http://localhost:3000/feeding/$BABY | jq .
 ```

@@ -7,8 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Slice 1: no auth, no user model.
-// When we add auth later, we add a User model and a userId FK here.
+/// Slice 1: no auth, no user model.
+/// When we add auth later, we add a User model and a userId FK here.
 model Baby {
   id        String   @id @default(uuid())
   name      String
@@ -16,26 +16,46 @@ model Baby {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  feedings Feeding[]
-  sleeps   Sleep[]
-  nappies  Nappy[]
+  feedingSessions FeedingSession[]
+  sleeps          Sleep[]
+  nappies         Nappy[]
 }
 
-model Feeding {
-  id        String      @id @default(uuid())
+/// A feeding session groups one or more segments (e.g. left breast → right breast → bottle top-up).
+model FeedingSession {
+  id        String           @id @default(uuid())
   babyId    String
-  baby      Baby        @relation(fields: [babyId], references: [id])
+  baby      Baby             @relation(fields: [babyId], references: [id])
   startedAt DateTime
-  endedAt   DateTime? // nullable — feeding might still be in progress
-  type      FeedingType
+  endedAt   DateTime?        /// Null while the session is still in progress.
   notes     String?
-  createdAt DateTime    @default(now())
+  createdAt DateTime         @default(now())
+
+  segments  FeedingSegment[]
 
   @@index([babyId, startedAt])
 }
 
-enum FeedingType {
-  BREAST
+/// A single breast or bottle feed within a session.
+model FeedingSegment {
+  id        String         @id @default(uuid())
+  sessionId String
+  session   FeedingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  order     Int            /// Sequence number within the session (1, 2, 3...).
+  side      SegmentSide
+  startedAt DateTime
+  endedAt   DateTime?      /// Null while the segment is still in progress.
+  volumeMl  Int?           /// Only relevant for BOTTLE segments.
+  notes     String?
+  createdAt DateTime       @default(now())
+
+  @@unique([sessionId, order])
+  @@index([sessionId, startedAt])
+}
+
+enum SegmentSide {
+  LEFT
+  RIGHT
   BOTTLE
 }
 

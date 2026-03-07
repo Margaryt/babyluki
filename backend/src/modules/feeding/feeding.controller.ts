@@ -1,41 +1,114 @@
 /** Feeding controller — handles HTTP requests and delegates to the service layer. */
 import { Request, Response } from 'express';
-import { createFeeding, getFeedings } from './feeding.service';
-import { CreateFeedingRequest } from './feeding.types';
+import {
+  startSession,
+  endFeedingSession,
+  addSegment,
+  stopFeedingSegment,
+  getSessions,
+} from './feeding.service';
+import {
+  CreateSessionRequest,
+  EndSessionRequest,
+  CreateSegmentRequest,
+  StopSegmentRequest,
+} from './feeding.types';
+
+// ---------------------------------------------------------------------------
+// Session handlers
+// ---------------------------------------------------------------------------
 
 /**
  * POST /:babyId
- * Creates a new feeding entry for the given baby.
+ * Creates a new feeding session for the given baby.
  */
-export const postFeeding = async (
-  req: Request<{ babyId: string }, {}, CreateFeedingRequest>,
+export const postSession = async (
+  req: Request<{ babyId: string }, {}, CreateSessionRequest>,
   res: Response
 ) => {
   try {
     const { babyId } = req.params;
-    const feeding = await createFeeding({ ...req.body, babyId });
-    res.status(201).json(feeding);
+    const session = await startSession({ ...req.body, babyId });
+    res.status(201).json(session);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to create feeding' });
+    res.status(500).json({ error: 'Failed to create feeding session' });
+  }
+};
+
+/**
+ * PATCH /:babyId/:sessionId/end
+ * Ends an active feeding session.
+ */
+export const patchEndSession = async (
+  req: Request<{ babyId: string; sessionId: string }, {}, EndSessionRequest>,
+  res: Response
+) => {
+  try {
+    const { babyId, sessionId } = req.params;
+    const session = await endFeedingSession({ ...req.body, babyId, sessionId });
+    res.json(session);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to end feeding session' });
   }
 };
 
 /**
  * GET /:babyId?date=YYYY-MM-DD
- * Returns all feedings for a baby on a given date. Defaults to today.
+ * Returns all feeding sessions for a baby on a given date. Defaults to today.
  */
-export const getFeedingsByDate = async (
+export const getSessionsByDate = async (
   req: Request<{ babyId: string }, {}, {}, { date?: string }>,
   res: Response
 ) => {
   try {
     const { babyId } = req.params;
     const date = req.query.date ? new Date(req.query.date) : new Date();
-    const feedings = await getFeedings(babyId, date);
-    res.json(feedings);
+    const sessions = await getSessions(babyId, date);
+    res.json(sessions);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to get feedings' });
+    res.status(500).json({ error: 'Failed to fetch feeding sessions' });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Segment handlers
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /:babyId/:sessionId/segment
+ * Starts a new segment within an active session.
+ */
+export const postSegment = async (
+  req: Request<{ babyId: string; sessionId: string }, {}, CreateSegmentRequest>,
+  res: Response
+) => {
+  try {
+    const { babyId, sessionId } = req.params;
+    const session = await addSegment({ ...req.body, babyId, sessionId });
+    res.status(201).json(session);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create segment' });
+  }
+};
+
+/**
+ * PATCH /:babyId/:sessionId/segment/:segmentId/stop
+ * Stops an active segment.
+ */
+export const patchStopSegment = async (
+  req: Request<{ babyId: string; sessionId: string; segmentId: string }, {}, StopSegmentRequest>,
+  res: Response
+) => {
+  try {
+    const { babyId, sessionId, segmentId } = req.params;
+    const session = await stopFeedingSegment({ ...req.body, babyId, sessionId, segmentId });
+    res.json(session);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to stop segment' });
   }
 };
