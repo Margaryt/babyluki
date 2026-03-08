@@ -68,37 +68,82 @@ The baby ID below is the seeded test baby (Luki).
 ```bash
 BABY=00000000-0000-0000-0000-000000000001
 
-# 1. Start a feeding session
-curl -s -X POST http://localhost:3000/feeding/$BABY | jq .
-# → copy the "id" from the response into SESSION below
+# 1. Start a feeding session (optional notes)
+curl -s -X POST http://localhost:3000/feeding/00000000-0000-0000-0000-000000000001 \
+  -H "Content-Type: application/json" \
+  -d '{"notes":"Morning feed after wake-up"}' | jq .
 
+# Response:
+# {
+#   "id": "a1b2c3d4-...",
+#   "babyId": "00000000-0000-0000-0000-000000000001",
+#   "startedAt": "2026-03-09T06:30:00.000Z",
+#   "endedAt": null,
+#   "notes": "Morning feed after wake-up",
+#   "createdAt": "2026-03-09T06:30:00.000Z",
+#   "segments": []
+# }
+
+# → copy the "id" from the response into SESSION below
 SESSION=<session-id>
 
-# 2. Start left breast
+# 2. Start left breast segment
 curl -s -X POST http://localhost:3000/feeding/$BABY/$SESSION/segment \
   -H "Content-Type: application/json" \
   -d '{"side":"LEFT"}' | jq .
-# → copy the segment "id" into SEG below
 
+# Response: just the segment
+# {
+#   "id": "e5f6g7h8-...",
+#   "sessionId": "a1b2c3d4-...",
+#   "order": 1,
+#   "side": "LEFT",
+#   "startedAt": "2026-03-09T06:30:05.000Z",
+#   "endedAt": null,
+#   "volumeMl": null,
+#   "createdAt": "2026-03-09T06:30:05.000Z"
+# }
+
+# → copy the segment "id" into SEG below
 SEG=<segment-id>
 
 # 3. Stop left breast (baby is done, time to burp)
-curl -s -X PATCH http://localhost:3000/feeding/$BABY/$SESSION/segment/$SEG/stop | jq .
+curl -s -X PATCH http://localhost:3000/feeding/$BABY/$SESSION/segment/$SEG/stop \
+  -H "Content-Type: application/json" \
+  -d '{"notes":"Good latch, fed well"}' | jq .
 
-# 4. Start right breast
+# Response: the stopped segment with endedAt stamped
+# {
+#   "id": "e5f6g7h8-...",
+#   "sessionId": "a1b2c3d4-...",
+#   "order": 1,
+#   "side": "LEFT",
+#   "startedAt": "2026-03-09T06:30:05.000Z",
+#   "endedAt": "2026-03-09T06:42:00.000Z",
+#   "volumeMl": null,
+#   "notes": "Good latch, fed well",
+#   "createdAt": "2026-03-09T06:30:05.000Z"
+# }
+
+# 4. Start right breast (after burping + nappy change)
 curl -s -X POST http://localhost:3000/feeding/$BABY/$SESSION/segment \
   -H "Content-Type: application/json" \
   -d '{"side":"RIGHT"}' | jq .
 
 # 5. Stop right breast, then add a bottle top-up
-# ... same stop pattern, then:
+# ... same stop pattern as step 3, then:
 curl -s -X POST http://localhost:3000/feeding/$BABY/$SESSION/segment \
   -H "Content-Type: application/json" \
-  -d '{"side":"BOTTLE","volumeMl":20}' | jq .
+  -d '{"side":"BOTTLE","volumeMl":30,"notes":"Formula top-up"}' | jq .
 
-# 6. End the session
-curl -s -X PATCH http://localhost:3000/feeding/$BABY/$SESSION/end | jq .
+# 6. End the session (optional notes)
+curl -s -X PATCH http://localhost:3000/feeding/$BABY/$SESSION/end \
+  -H "Content-Type: application/json" \
+  -d '{"notes":"Fed well, fell asleep after"}' | jq .
 
 # 7. View today's sessions
 curl -s http://localhost:3000/feeding/$BABY | jq .
+
+# 8. View sessions for a specific date
+curl -s "http://localhost:3000/feeding/$BABY?date=2026-03-09" | jq .
 ```
