@@ -87,8 +87,8 @@ export const postSegment = async (
 ) => {
   try {
     const { babyId, sessionId } = req.params;
-    const session = await addSegment({ ...req.body, babyId, sessionId });
-    res.status(201).json(session);
+    const segment = await addSegment({ ...req.body, babyId, sessionId });
+    res.status(201).json(segment);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create segment' });
@@ -105,8 +105,8 @@ export const patchStopSegment = async (
 ) => {
   try {
     const { babyId, sessionId, segmentId } = req.params;
-    const session = await stopFeedingSegment({ ...req.body, babyId, sessionId, segmentId });
-    res.json(session);
+    const segment = await stopFeedingSegment({ ...req.body, babyId, sessionId, segmentId });
+    res.json(segment);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to stop segment' });
