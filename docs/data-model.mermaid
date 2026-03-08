@@ -1,0 +1,52 @@
+erDiagram
+    Baby {
+        uuid id PK
+        string name
+        datetime birthDate
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    FeedingSession {
+        uuid id PK
+        uuid babyId FK
+        datetime startedAt
+        datetime endedAt "nullable"
+        string notes "nullable"
+        datetime createdAt
+    }
+
+    FeedingSegment {
+        uuid id PK
+        uuid sessionId FK
+        int order "sequence within session"
+        SegmentSide side "LEFT | RIGHT | BOTTLE"
+        datetime startedAt
+        datetime endedAt "nullable"
+        int volumeMl "nullable, BOTTLE only"
+        string notes "nullable"
+        datetime createdAt
+    }
+
+    Sleep {
+        uuid id PK
+        uuid babyId FK
+        datetime startedAt
+        datetime endedAt "nullable"
+        string notes "nullable"
+        datetime createdAt
+    }
+
+    Nappy {
+        uuid id PK
+        uuid babyId FK
+        datetime changedAt
+        NappyType type "WET | DIRTY | MIXED"
+        string notes "nullable"
+        datetime createdAt
+    }
+
+    Baby ||--o{ FeedingSession : "has many"
+    FeedingSession ||--o{ FeedingSegment : "has many (cascade delete)"
+    Baby ||--o{ Sleep : "has many"
+    Baby ||--o{ Nappy : "has many"

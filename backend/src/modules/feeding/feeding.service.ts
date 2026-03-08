@@ -17,10 +17,7 @@ import {
   sessionBelongsToBaby,
   SessionWithSegments,
 } from './feeding.db';
-import {
-  FeedingSession as PrismaSession,
-  FeedingSegment as PrismaSegment,
-} from '@prisma/client';
+import { FeedingSegment as PrismaSegment } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -46,25 +43,19 @@ export async function endFeedingSession(
 /** Adds a new segment to an active session. Validates baby ownership first. */
 export async function addSegment(
   input: CreateSegmentInput
-): Promise<FeedingSessionResponse> {
+): Promise<FeedingSegmentResponse> {
   await assertSessionBelongsToBaby(input.sessionId, input.babyId);
-  await createSegment(input);
-
-  const updated = await getSessionById(input.sessionId);
-  if (!updated) throw new Error(`Session ${input.sessionId} not found after creating segment`);
-  return serializeSession(updated);
+  const segment = await createSegment(input);
+  return serializeSegment(segment);
 }
 
 /** Stops an active segment. Validates baby ownership first. */
 export async function stopFeedingSegment(
   input: StopSegmentInput
-): Promise<FeedingSessionResponse> {
+): Promise<FeedingSegmentResponse> {
   await assertSessionBelongsToBaby(input.sessionId, input.babyId);
-  await stopSegment(input.segmentId, input.notes);
-
-  const updated = await getSessionById(input.sessionId);
-  if (!updated) throw new Error(`Session ${input.sessionId} not found after stopping segment`);
-  return serializeSession(updated);
+  const segment = await stopSegment(input.segmentId, input.notes);
+  return serializeSegment(segment);
 }
 
 /** Returns all feeding sessions (with segments) for a baby on a given date. */
