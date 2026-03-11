@@ -11,6 +11,7 @@ import {
   createSession,
   getSessionById,
   endSession,
+  deleteSession,
   createSegment,
   stopSegment,
   getSessionsByBabyAndDate,
@@ -56,6 +57,15 @@ export async function stopFeedingSegment(
   await assertSessionBelongsToBaby(input.sessionId, input.babyId);
   const segment = await stopSegment(input.segmentId, input.notes);
   return serializeSegment(segment);
+}
+
+/** Deletes a feeding session and all its segments. Validates baby ownership first. */
+export async function removeFeedingSession(
+  sessionId: string,
+  babyId: string
+): Promise<void> {
+  await assertSessionBelongsToBaby(sessionId, babyId);
+  await deleteSession(sessionId);
 }
 
 /** Returns all feeding sessions (with segments) for a baby on a given date. */

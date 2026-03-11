@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import {
   startSession,
   endFeedingSession,
+  removeFeedingSession,
   addSegment,
   stopFeedingSegment,
   getSessions,
@@ -70,6 +71,24 @@ export const getSessionsByDate = async (
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch feeding sessions' });
+  }
+};
+
+/**
+ * DELETE /:babyId/:sessionId
+ * Deletes a feeding session and all its segments.
+ */
+export const deleteSessionHandler = async (
+  req: Request<{ babyId: string; sessionId: string }>,
+  res: Response
+) => {
+  try {
+    const { babyId, sessionId } = req.params;
+    await removeFeedingSession(sessionId, babyId);
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete feeding session' });
   }
 };
 
