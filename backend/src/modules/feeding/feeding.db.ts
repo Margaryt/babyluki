@@ -74,6 +74,11 @@ export const getSessionsByBabyAndDate = async (
   });
 };
 
+/** Deletes a session and all its segments (cascade). */
+export const deleteSession = async (sessionId: string): Promise<void> => {
+  await prisma.feedingSession.delete({ where: { id: sessionId } });
+};
+
 /** Returns true if the session exists and belongs to the given baby. */
 export const sessionBelongsToBaby = async (
   sessionId: string,

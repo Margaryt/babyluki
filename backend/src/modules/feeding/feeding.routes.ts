@@ -11,6 +11,7 @@ import { Router } from 'express';
 import {
   postSession,
   patchEndSession,
+  deleteSessionHandler,
   postSegment,
   patchStopSegment,
   getSessionsByDate,
@@ -22,6 +23,7 @@ const router = Router();
 router.post('/:babyId', postSession);
 router.get('/:babyId', getSessionsByDate);
 router.patch('/:babyId/:sessionId/end', patchEndSession);
+router.delete('/:babyId/:sessionId', deleteSessionHandler);
 
 /** Segment routes. */
 router.post('/:babyId/:sessionId/segment', postSegment);
