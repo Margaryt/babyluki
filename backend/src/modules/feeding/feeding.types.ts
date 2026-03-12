@@ -35,21 +35,61 @@ export interface FeedingSessionResponse {
   segments: FeedingSegmentResponse[];
 }
 
+/** A feeding session with computed summary fields and burp timestamps. */
+export interface FeedingSessionDetailResponse extends FeedingSessionResponse {
+  /** Total wall-clock minutes from session start to end. */
+  totalDurationMinutes: number | null;
+  /** Sum of segment durations (actual feeding time). */
+  activeFeedingMinutes: number;
+  /** Sum of volumeMl across BOTTLE segments. */
+  totalBottleMl: number;
+  /** Number of burps during this session. */
+  burpCount: number;
+  /** Burp timestamps in chronological order. */
+  burps: Array<{ timestamp: string }>;
+}
+
+/** Day-level summary with all sessions. */
+export interface DayViewResponse {
+  date: string;
+  totalSessions: number;
+  totalFeedingMinutes: number;
+  totalBottleMl: number;
+  /** Session burps + standalone burps for the day. */
+  totalBurps: number;
+  sessions: FeedingSessionResponse[];
+}
+
+/** Statistics across multiple days (for heatmap and averages). */
+export interface StatsResponse {
+  feedingWindows: Array<{
+    date: string;
+    sessions: Array<{ startedAt: string; endedAt: string | null }>;
+  }>;
+  averages: {
+    feedsPerDay: number;
+    avgSessionMinutes: number;
+    avgGapMinutes: number;
+    dailyBottleMl: number;
+    burpsPerSession: number;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Request types (sent by the client)
 // ---------------------------------------------------------------------------
 
-/** POST /feeding/:babyId — create a new session. */
+/** POST /feeding/sessions/:babyId — create a new session. */
 export interface CreateSessionRequest {
   notes?: string;
 }
 
-/** PATCH /feeding/:babyId/:sessionId/end — end a session. */
+/** PATCH /feeding/sessions/:sessionId/end — end a session. */
 export interface EndSessionRequest {
   notes?: string;
 }
 
-/** POST /feeding/:babyId/:sessionId/segment — start a new segment. */
+/** POST /feeding/segments/:sessionId — start a new segment. */
 export interface CreateSegmentRequest {
   side: SegmentSide;
   /** Only relevant for BOTTLE segments. */
@@ -57,7 +97,7 @@ export interface CreateSegmentRequest {
   notes?: string;
 }
 
-/** PATCH /feeding/:babyId/:sessionId/segment/:segmentId/stop — stop a segment. */
+/** PATCH /feeding/segments/:segmentId/stop — stop a segment. */
 export interface StopSegmentRequest {
   notes?: string;
 }
@@ -71,21 +111,7 @@ export interface CreateSessionInput extends CreateSessionRequest {
   babyId: string;
 }
 
-/** {@link EndSessionRequest} + identifiers from the route. */
-export interface EndSessionInput extends EndSessionRequest {
-  sessionId: string;
-  babyId: string;
-}
-
-/** {@link CreateSegmentRequest} + identifiers from the route. */
+/** {@link CreateSegmentRequest} + sessionId from the route. */
 export interface CreateSegmentInput extends CreateSegmentRequest {
   sessionId: string;
-  babyId: string;
-}
-
-/** {@link StopSegmentRequest} + identifiers from the route. */
-export interface StopSegmentInput extends StopSegmentRequest {
-  segmentId: string;
-  sessionId: string;
-  babyId: string;
 }

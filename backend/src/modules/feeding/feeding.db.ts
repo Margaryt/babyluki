@@ -4,13 +4,23 @@ import { CreateSessionInput, CreateSegmentInput } from './feeding.types';
 import {
   FeedingSession as PrismaSession,
   FeedingSegment as PrismaSegment,
+  Burp as PrismaBurp,
 } from '@prisma/client';
 
 /** The shape Prisma returns when we include segments on a session. */
 export type SessionWithSegments = PrismaSession & { segments: PrismaSegment[] };
 
+/** Session with segments and burps — used for session detail view. */
+export type SessionWithSegmentsAndBurps = SessionWithSegments & { burps: PrismaBurp[] };
+
 /** Shared include clause — segments ordered by sequence number. */
 const includeSegments = { segments: { orderBy: { order: 'asc' as const } } };
+
+/** Include clause for segments + burps. */
+const includeSegmentsAndBurps = {
+  segments: { orderBy: { order: 'asc' as const } },
+  burps: { orderBy: { timestamp: 'asc' as const } },
+};
 
 // ---------------------------------------------------------------------------
 // Session queries
@@ -79,15 +89,30 @@ export const deleteSession = async (sessionId: string): Promise<void> => {
   await prisma.feedingSession.delete({ where: { id: sessionId } });
 };
 
-/** Returns true if the session exists and belongs to the given baby. */
-export const sessionBelongsToBaby = async (
-  sessionId: string,
-  babyId: string
-): Promise<boolean> => {
-  const session = await prisma.feedingSession.findFirst({
-    where: { id: sessionId, babyId },
+/** Fetches a single session with segments and burps for the detail view. */
+export const getSessionWithBurps = async (
+  sessionId: string
+): Promise<SessionWithSegmentsAndBurps | null> => {
+  return prisma.feedingSession.findUnique({
+    where: { id: sessionId },
+    include: includeSegmentsAndBurps,
   });
-  return session !== null;
+};
+
+/** Fetches all sessions (with segments) for a baby within a date range. */
+export const getSessionsByDateRange = async (
+  babyId: string,
+  from: Date,
+  to: Date
+): Promise<SessionWithSegments[]> => {
+  return prisma.feedingSession.findMany({
+    where: {
+      babyId,
+      startedAt: { gte: from, lte: to },
+    },
+    include: includeSegments,
+    orderBy: { startedAt: 'asc' },
+  });
 };
 
 // ---------------------------------------------------------------------------
@@ -117,15 +142,8 @@ export const createSegment = async (
   });
 };
 
-/** Deletes a single segment. Looks up the parent session to validate baby ownership. */
-export const deleteSegment = async (segmentId: string, babyId: string): Promise<void> => {
-  const segment = await prisma.feedingSegment.findUnique({
-    where: { id: segmentId },
-    include: { session: true },
-  });
-  if (!segment || segment.session.babyId !== babyId) {
-    throw new Error(`Segment ${segmentId} not found or does not belong to baby ${babyId}`);
-  }
+/** Deletes a single segment by ID. */
+export const deleteSegment = async (segmentId: string): Promise<void> => {
   await prisma.feedingSegment.delete({ where: { id: segmentId } });
 };
 
