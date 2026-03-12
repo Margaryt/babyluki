@@ -69,14 +69,12 @@ export async function removeFeedingSession(
   await deleteSession(sessionId);
 }
 
-/** Deletes a single segment. Validates baby ownership first. */
+/** Deletes a single segment. Validates baby ownership via the parent session. */
 export async function removeFeedingSegment(
   segmentId: string,
-  sessionId: string,
   babyId: string
 ): Promise<void> {
-  await assertSessionBelongsToBaby(sessionId, babyId);
-  await deleteSegment(segmentId);
+  await deleteSegment(segmentId, babyId);
 }
 
 /** Returns all feeding sessions (with segments) for a baby on a given date. */
