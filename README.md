@@ -16,11 +16,11 @@ Baby Luki is a baby tracking app with an AI layer that turns raw data into usefu
 
 This is a monorepo with the following structure:
 
-- `backend/` — Node.js + Express + TypeScript API
+- `backend/` — Node.js + Express + TypeScript API ([setup & API docs](backend/README.md))
 - `frontend/` — Mobile app (coming soon)
-- `docs/` — Documentation
+- `docs/` — Data model diagrams and UI mockups
 
-The backend uses Prisma as the ORM with PostgreSQL. The data model centres on a Baby entity. Feedings use a session/segment pattern — a FeedingSession groups one or more FeedingSegments (e.g. left breast → right breast → bottle top-up). Sleep and Nappy are simpler flat models. When auth is added later, babies will be linked to users.
+The backend uses Prisma as the ORM with PostgreSQL. The data model centres on a Baby entity. Feedings use a session/segment pattern — a FeedingSession groups one or more FeedingSegments (e.g. left breast → right breast → bottle top-up). Burps are tracked as standalone events or linked to a session. Sleep and Nappy are simpler flat models. When auth is added later, babies will be linked to users.
 
 ## Building in thin slices
 
@@ -35,115 +35,3 @@ I'm building this incrementally, one working slice at a time:
 7. **Slice 7**: AI daily summary + growth spurt detection
 
 Each slice is a usable increment — the goal is to be using the app on my phone as early as possible.
-
-## Running locally
-
-Prerequisites: Docker Desktop, Node.js v20+
-
-```bash
-cd backend
-
-# Start Postgres
-docker-compose up -d
-
-# Install dependencies
-npm install
-
-# Run database migration (name it "init" when prompted)
-npm run db:migrate
-
-# Seed test data (creates a baby named Luki)
-npm run db:seed
-
-# Start the dev server (hot-reloads on file changes)
-npm run start:dev
-```
-
-The API runs on `http://localhost:3000`. To browse the database visually, run `npm run db:studio` (opens at `http://localhost:5555`).
-
-### Example: log a full feeding session
-
-The baby ID below is the seeded test baby (Luki).
-
-```bash
-BABY=00000000-0000-0000-0000-000000000001
-
-# 1. Start a feeding session (optional notes)
-curl -s -X POST http://localhost:3000/feeding/00000000-0000-0000-0000-000000000001 \
-  -H "Content-Type: application/json" \
-  -d '{"notes":"Morning feed after wake-up"}' | jq .
-
-# Response:
-# {
-#   "id": "a1b2c3d4-...",
-#   "babyId": "00000000-0000-0000-0000-000000000001",
-#   "startedAt": "2026-03-09T06:30:00.000Z",
-#   "endedAt": null,
-#   "notes": "Morning feed after wake-up",
-#   "createdAt": "2026-03-09T06:30:00.000Z",
-#   "segments": []
-# }
-
-# → copy the "id" from the response into SESSION below
-SESSION=<session-id>
-
-# 2. Start left breast segment
-curl -s -X POST http://localhost:3000/feeding/$BABY/$SESSION/segment \
-  -H "Content-Type: application/json" \
-  -d '{"side":"LEFT"}' | jq .
-
-# Response: just the segment
-# {
-#   "id": "e5f6g7h8-...",
-#   "sessionId": "a1b2c3d4-...",
-#   "order": 1,
-#   "side": "LEFT",
-#   "startedAt": "2026-03-09T06:30:05.000Z",
-#   "endedAt": null,
-#   "volumeMl": null,
-#   "createdAt": "2026-03-09T06:30:05.000Z"
-# }
-
-# → copy the segment "id" into SEG below
-SEG=<segment-id>
-
-# 3. Stop left breast (baby is done, time to burp)
-curl -s -X PATCH http://localhost:3000/feeding/$BABY/$SESSION/segment/$SEG/stop \
-  -H "Content-Type: application/json" \
-  -d '{"notes":"Good latch, fed well"}' | jq .
-
-# Response: the stopped segment with endedAt stamped
-# {
-#   "id": "e5f6g7h8-...",
-#   "sessionId": "a1b2c3d4-...",
-#   "order": 1,
-#   "side": "LEFT",
-#   "startedAt": "2026-03-09T06:30:05.000Z",
-#   "endedAt": "2026-03-09T06:42:00.000Z",
-#   "volumeMl": null,
-#   "notes": "Good latch, fed well",
-#   "createdAt": "2026-03-09T06:30:05.000Z"
-# }
-
-# 4. Start right breast (after burping + nappy change)
-curl -s -X POST http://localhost:3000/feeding/$BABY/$SESSION/segment \
-  -H "Content-Type: application/json" \
-  -d '{"side":"RIGHT"}' | jq .
-
-# 5. Stop right breast, then add a bottle top-up
-# ... same stop pattern as step 3, then:
-curl -s -X POST http://localhost:3000/feeding/$BABY/$SESSION/segment \
-  -H "Content-Type: application/json" \
-  -d '{"side":"BOTTLE","volumeMl":30,"notes":"Formula top-up"}' | jq .
-
-# 6. End the session (optional notes)
-curl -s -X PATCH http://localhost:3000/feeding/$BABY/$SESSION/end \
-  -H "Content-Type: application/json" \
-  -d '{"notes":"Fed well, fell asleep after"}' | jq .
-
-# 7. View today's sessions
-curl -s http://localhost:3000/feeding/$BABY | jq .
-
-# 8. View sessions for a specific date
-curl -s "http://localhost:3000/feeding/$BABY?date=2026-03-09" | jq .
-```
