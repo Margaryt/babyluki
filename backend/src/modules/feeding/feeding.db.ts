@@ -117,6 +117,11 @@ export const createSegment = async (
   });
 };
 
+/** Deletes a single segment. */
+export const deleteSegment = async (segmentId: string): Promise<void> => {
+  await prisma.feedingSegment.delete({ where: { id: segmentId } });
+};
+
 /** Stamps endedAt on a segment. */
 export const stopSegment = async (
   segmentId: string,

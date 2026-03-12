@@ -4,6 +4,7 @@ import {
   startSession,
   endFeedingSession,
   removeFeedingSession,
+  removeFeedingSegment,
   addSegment,
   stopFeedingSegment,
   getSessions,
@@ -129,5 +130,23 @@ export const patchStopSegment = async (
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to stop segment' });
+  }
+};
+
+/**
+ * DELETE /:babyId/:sessionId/segment/:segmentId
+ * Deletes a single segment from a session.
+ */
+export const deleteSegmentHandler = async (
+  req: Request<{ babyId: string; sessionId: string; segmentId: string }>,
+  res: Response
+) => {
+  try {
+    const { babyId, sessionId, segmentId } = req.params;
+    await removeFeedingSegment(segmentId, sessionId, babyId);
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete segment' });
   }
 };
