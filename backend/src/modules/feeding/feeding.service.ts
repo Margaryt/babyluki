@@ -12,6 +12,7 @@ import {
   getSessionById,
   endSession,
   deleteSession,
+  deleteSegment,
   createSegment,
   stopSegment,
   getSessionsByBabyAndDate,
@@ -66,6 +67,16 @@ export async function removeFeedingSession(
 ): Promise<void> {
   await assertSessionBelongsToBaby(sessionId, babyId);
   await deleteSession(sessionId);
+}
+
+/** Deletes a single segment. Validates baby ownership first. */
+export async function removeFeedingSegment(
+  segmentId: string,
+  sessionId: string,
+  babyId: string
+): Promise<void> {
+  await assertSessionBelongsToBaby(sessionId, babyId);
+  await deleteSegment(segmentId);
 }
 
 /** Returns all feeding sessions (with segments) for a baby on a given date. */
