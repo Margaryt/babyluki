@@ -134,16 +134,16 @@ export const patchStopSegment = async (
 };
 
 /**
- * DELETE /:babyId/:sessionId/segment/:segmentId
- * Deletes a single segment from a session.
+ * DELETE /:babyId/segment/:segmentId
+ * Deletes a single segment. Ownership is validated via the parent session.
  */
 export const deleteSegmentHandler = async (
-  req: Request<{ babyId: string; sessionId: string; segmentId: string }>,
+  req: Request<{ babyId: string; segmentId: string }>,
   res: Response
 ) => {
   try {
-    const { babyId, sessionId, segmentId } = req.params;
-    await removeFeedingSegment(segmentId, sessionId, babyId);
+    const { babyId, segmentId } = req.params;
+    await removeFeedingSegment(segmentId, babyId);
     res.status(204).send();
   } catch (err) {
     console.error(err);

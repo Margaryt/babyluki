@@ -29,6 +29,6 @@ router.delete('/:babyId/:sessionId', deleteSessionHandler);
 /** Segment routes. */
 router.post('/:babyId/:sessionId/segment', postSegment);
 router.patch('/:babyId/:sessionId/segment/:segmentId/stop', patchStopSegment);
-router.delete('/:babyId/:sessionId/segment/:segmentId', deleteSegmentHandler);
+router.delete('/:babyId/segment/:segmentId', deleteSegmentHandler);
 
 export default router;

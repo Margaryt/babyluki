@@ -117,8 +117,15 @@ export const createSegment = async (
   });
 };
 
-/** Deletes a single segment. */
-export const deleteSegment = async (segmentId: string): Promise<void> => {
+/** Deletes a single segment. Looks up the parent session to validate baby ownership. */
+export const deleteSegment = async (segmentId: string, babyId: string): Promise<void> => {
+  const segment = await prisma.feedingSegment.findUnique({
+    where: { id: segmentId },
+    include: { session: true },
+  });
+  if (!segment || segment.session.babyId !== babyId) {
+    throw new Error(`Segment ${segmentId} not found or does not belong to baby ${babyId}`);
+  }
   await prisma.feedingSegment.delete({ where: { id: segmentId } });
 };
 
