@@ -1,34 +1,40 @@
 /**
  * Feeding routes.
  *
- * All routes are scoped to a specific baby via :babyId in the URL.
- * This keeps the API consistent across all endpoints, and supports
- * parents with multiple babies. When we add auth, :babyId will be removed
- * from the URL and instead will be determined from the authenticated user's
- * babies via middleware.
+ * Routes are grouped by resource:
+ *   /sessions/* — feeding session lifecycle
+ *   /segments/* — segment lifecycle within a session
+ *
+ * Route order matters: static segments like /day and /stats must
+ * come before parameterised segments like /:sessionId, otherwise
+ * Express will match "day" or "stats" as a sessionId.
  */
 import { Router } from 'express';
 import {
-  postSession,
-  patchEndSession,
-  deleteSessionHandler,
-  postSegment,
-  patchStopSegment,
-  deleteSegmentHandler,
-  getSessionsByDate,
+  createSession,
+  getSessionDetail,
+  getDaySessions,
+  getStats,
+  endSession,
+  deleteSession,
+  createSegment,
+  stopSegment,
+  deleteSegment,
 } from './feeding.controller';
 
 const router = Router();
 
-/** Session routes. */
-router.post('/:babyId', postSession);
-router.get('/:babyId', getSessionsByDate);
-router.patch('/:babyId/:sessionId/end', patchEndSession);
-router.delete('/:babyId/:sessionId', deleteSessionHandler);
+/** Session routes — /feeding/sessions/* */
+router.post('/sessions/:babyId', createSession);
+router.get('/sessions/day/:babyId', getDaySessions);
+router.get('/sessions/stats/:babyId', getStats);
+router.get('/sessions/:sessionId', getSessionDetail);
+router.patch('/sessions/:sessionId/end', endSession);
+router.delete('/sessions/:sessionId', deleteSession);
 
-/** Segment routes. */
-router.post('/:babyId/:sessionId/segment', postSegment);
-router.patch('/:babyId/:sessionId/segment/:segmentId/stop', patchStopSegment);
-router.delete('/:babyId/segment/:segmentId', deleteSegmentHandler);
+/** Segment routes — /feeding/segments/* */
+router.post('/segments/:sessionId', createSegment);
+router.patch('/segments/:segmentId/stop', stopSegment);
+router.delete('/segments/:segmentId', deleteSegment);
 
 export default router;

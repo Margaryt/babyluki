@@ -19,6 +19,7 @@ model Baby {
   feedingSessions FeedingSession[]
   sleeps          Sleep[]
   nappies         Nappy[]
+  burps           Burp[]
 }
 
 /// A feeding session groups one or more segments (e.g. left breast → right breast → bottle top-up).
@@ -32,6 +33,7 @@ model FeedingSession {
   createdAt DateTime         @default(now())
 
   segments  FeedingSegment[]
+  burps     Burp[]
 
   @@index([babyId, startedAt])
 }
@@ -87,4 +89,18 @@ enum NappyType {
   WET
   DIRTY
   MIXED
+}
+
+/// A burp event. Can be linked to a feeding session or standalone.
+model Burp {
+  id        String          @id @default(uuid())
+  babyId    String
+  baby      Baby            @relation(fields: [babyId], references: [id])
+  sessionId String?         /// Null for standalone burps (outside a feeding session).
+  session   FeedingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  timestamp DateTime
+  createdAt DateTime        @default(now())
+
+  @@index([babyId, timestamp])
+  @@index([sessionId])
 }

@@ -1,14 +1,6 @@
 /** Feeding controller — handles HTTP requests and delegates to the service layer. */
 import { Request, Response } from 'express';
-import {
-  startSession,
-  endFeedingSession,
-  removeFeedingSession,
-  removeFeedingSegment,
-  addSegment,
-  stopFeedingSegment,
-  getSessions,
-} from './feeding.service';
+import * as feedingService from './feeding.service';
 import {
   CreateSessionRequest,
   EndSessionRequest,
@@ -20,17 +12,14 @@ import {
 // Session handlers
 // ---------------------------------------------------------------------------
 
-/**
- * POST /:babyId
- * Creates a new feeding session for the given baby.
- */
-export const postSession = async (
+/** POST /sessions/:babyId */
+export const createSession = async (
   req: Request<{ babyId: string }, {}, CreateSessionRequest>,
   res: Response
 ) => {
   try {
     const { babyId } = req.params;
-    const session = await startSession({ ...req.body, babyId });
+    const session = await feedingService.startSession({ ...req.body, babyId });
     res.status(201).json(session);
   } catch (err) {
     console.error(err);
@@ -38,17 +27,61 @@ export const postSession = async (
   }
 };
 
-/**
- * PATCH /:babyId/:sessionId/end
- * Ends an active feeding session.
- */
-export const patchEndSession = async (
-  req: Request<{ babyId: string; sessionId: string }, {}, EndSessionRequest>,
+/** GET /sessions/day/:babyId?date=YYYY-MM-DD */
+export const getDaySessions = async (
+  req: Request<{ babyId: string }, {}, {}, { date?: string }>,
   res: Response
 ) => {
   try {
-    const { babyId, sessionId } = req.params;
-    const session = await endFeedingSession({ ...req.body, babyId, sessionId });
+    const { babyId } = req.params;
+    const date = req.query.date ? new Date(req.query.date) : new Date();
+    const dayView = await feedingService.getDayView(babyId, date);
+    res.json(dayView);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch feeding sessions' });
+  }
+};
+
+/** GET /sessions/stats/:babyId?days=7 */
+export const getStats = async (
+  req: Request<{ babyId: string }, {}, {}, { days?: string }>,
+  res: Response
+) => {
+  try {
+    const { babyId } = req.params;
+    const days = req.query.days ? parseInt(req.query.days, 10) : 7;
+    const stats = await feedingService.getStats(babyId, days);
+    res.json(stats);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch feeding statistics' });
+  }
+};
+
+/** GET /sessions/:sessionId */
+export const getSessionDetail = async (
+  req: Request<{ sessionId: string }>,
+  res: Response
+) => {
+  try {
+    const { sessionId } = req.params;
+    const detail = await feedingService.getSessionDetail(sessionId);
+    res.json(detail);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch session detail' });
+  }
+};
+
+/** PATCH /sessions/:sessionId/end */
+export const endSession = async (
+  req: Request<{ sessionId: string }, {}, EndSessionRequest>,
+  res: Response
+) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await feedingService.endFeedingSession(sessionId, req.body.notes);
     res.json(session);
   } catch (err) {
     console.error(err);
@@ -56,36 +89,14 @@ export const patchEndSession = async (
   }
 };
 
-/**
- * GET /:babyId?date=YYYY-MM-DD
- * Returns all feeding sessions for a baby on a given date. Defaults to today.
- */
-export const getSessionsByDate = async (
-  req: Request<{ babyId: string }, {}, {}, { date?: string }>,
+/** DELETE /sessions/:sessionId */
+export const deleteSession = async (
+  req: Request<{ sessionId: string }>,
   res: Response
 ) => {
   try {
-    const { babyId } = req.params;
-    const date = req.query.date ? new Date(req.query.date) : new Date();
-    const sessions = await getSessions(babyId, date);
-    res.json(sessions);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch feeding sessions' });
-  }
-};
-
-/**
- * DELETE /:babyId/:sessionId
- * Deletes a feeding session and all its segments.
- */
-export const deleteSessionHandler = async (
-  req: Request<{ babyId: string; sessionId: string }>,
-  res: Response
-) => {
-  try {
-    const { babyId, sessionId } = req.params;
-    await removeFeedingSession(sessionId, babyId);
+    const { sessionId } = req.params;
+    await feedingService.removeFeedingSession(sessionId);
     res.status(204).send();
   } catch (err) {
     console.error(err);
@@ -97,17 +108,14 @@ export const deleteSessionHandler = async (
 // Segment handlers
 // ---------------------------------------------------------------------------
 
-/**
- * POST /:babyId/:sessionId/segment
- * Starts a new segment within an active session.
- */
-export const postSegment = async (
-  req: Request<{ babyId: string; sessionId: string }, {}, CreateSegmentRequest>,
+/** POST /segments/:sessionId */
+export const createSegment = async (
+  req: Request<{ sessionId: string }, {}, CreateSegmentRequest>,
   res: Response
 ) => {
   try {
-    const { babyId, sessionId } = req.params;
-    const segment = await addSegment({ ...req.body, babyId, sessionId });
+    const { sessionId } = req.params;
+    const segment = await feedingService.addSegment({ ...req.body, sessionId });
     res.status(201).json(segment);
   } catch (err) {
     console.error(err);
@@ -115,17 +123,14 @@ export const postSegment = async (
   }
 };
 
-/**
- * PATCH /:babyId/:sessionId/segment/:segmentId/stop
- * Stops an active segment.
- */
-export const patchStopSegment = async (
-  req: Request<{ babyId: string; sessionId: string; segmentId: string }, {}, StopSegmentRequest>,
+/** PATCH /segments/:segmentId/stop */
+export const stopSegment = async (
+  req: Request<{ segmentId: string }, {}, StopSegmentRequest>,
   res: Response
 ) => {
   try {
-    const { babyId, sessionId, segmentId } = req.params;
-    const segment = await stopFeedingSegment({ ...req.body, babyId, sessionId, segmentId });
+    const { segmentId } = req.params;
+    const segment = await feedingService.stopFeedingSegment(segmentId, req.body.notes);
     res.json(segment);
   } catch (err) {
     console.error(err);
@@ -133,17 +138,14 @@ export const patchStopSegment = async (
   }
 };
 
-/**
- * DELETE /:babyId/segment/:segmentId
- * Deletes a single segment. Ownership is validated via the parent session.
- */
-export const deleteSegmentHandler = async (
-  req: Request<{ babyId: string; segmentId: string }>,
+/** DELETE /segments/:segmentId */
+export const deleteSegment = async (
+  req: Request<{ segmentId: string }>,
   res: Response
 ) => {
   try {
-    const { babyId, segmentId } = req.params;
-    await removeFeedingSegment(segmentId, babyId);
+    const { segmentId } = req.params;
+    await feedingService.removeFeedingSegment(segmentId);
     res.status(204).send();
   } catch (err) {
     console.error(err);
