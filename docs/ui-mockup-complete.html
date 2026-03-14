@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baby Luki — Complete UI Mockup v2</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #e8e8e8; padding: 32px 16px; }
+
+  h1.page-title { text-align: center; font-size: 22px; color: #333; margin-bottom: 4px; }
+  p.page-sub { text-align: center; color: #999; font-size: 13px; margin-bottom: 32px; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; margin-bottom: 40px; }
+  .row-label { width: 100%; text-align: center; font-size: 12px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+
+  /* Phone frame */
+  .phone { width: 375px; height: 780px; background: #fff; border-radius: 32px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.12); position: relative; display: flex; flex-direction: column; flex-shrink: 0; }
+  .status-bar { height: 44px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; padding: 0 24px; flex-shrink: 0; }
+  .header { padding: 12px 20px 8px; flex-shrink: 0; }
+  .header h2 { font-size: 22px; font-weight: 700; color: #1a1a1a; }
+  .header .sub { font-size: 13px; color: #888; margin-top: 2px; }
+  .back-link { font-size: 13px; color: #1967d2; margin-bottom: 4px; cursor: pointer; }
+  .content { flex: 1; overflow-y: auto; padding: 0 16px 100px; }
+  .screen-label { position: absolute; top: 8px; right: 16px; font-size: 10px; color: #aaa; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+
+  /* Summary pills */
+  .pills { display: flex; gap: 6px; padding: 10px 0; overflow-x: auto; flex-wrap: wrap; }
+  .pill { background: #f5f5f5; border-radius: 14px; padding: 6px 12px; display: flex; align-items: center; gap: 5px; font-size: 12px; color: #555; white-space: nowrap; }
+  .pill .v { font-weight: 700; color: #1a1a1a; }
+
+  /* Cards */
+  .card { background: #fafafa; border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; border: 1px solid #eee; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .card-time { font-weight: 600; font-size: 14px; color: #1a1a1a; }
+  .card-badge { font-size: 11px; color: #888; background: #f0f0f0; padding: 3px 8px; border-radius: 8px; }
+
+  /* Tags */
+  .tags { display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 3px 9px; border-radius: 8px; font-weight: 500; }
+  .t-left { background: #e8f0fe; color: #1967d2; }
+  .t-right { background: #fce8e6; color: #c5221f; }
+  .t-bottle { background: #e6f4ea; color: #137333; }
+  .t-burp { background: #fff3e0; color: #e65100; }
+  .t-spill { background: #e3f2fd; color: #1565c0; }
+  .t-hiccup { background: #f3e5f5; color: #7b1fa2; }
+  .t-cough { background: #fce4ec; color: #c62828; }
+
+  /* Event chips row inside card */
+  .ev-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; padding-top: 7px; border-top: 1px solid #eee; }
+
+  /* Section headers */
+  .section { font-size: 12px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .5px; margin: 16px 0 8px; }
+
+  /* Active banner */
+  .banner { border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+  .banner-hiccup { background: #f3e5f5; }
+  .pulse { width: 9px; height: 9px; border-radius: 50%; animation: pulse 1.5s infinite; flex-shrink: 0; }
+  .pulse-purple { background: #7b1fa2; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+  .banner-info { flex: 1; }
+  .banner-title { font-weight: 600; font-size: 13px; }
+  .banner-sub { font-size: 11px; opacity: .7; }
+  .btn-sm { border: none; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: #fff; }
+  .btn-purple { background: #7b1fa2; }
+
+  /* Standalone events */
+  .ev-standalone { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fafafa; border-radius: 12px; margin-bottom: 8px; border: 1px solid #eee; }
+  .ev-icon { font-size: 20px; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+  .ev-standalone .info { flex: 1; }
+  .ev-standalone .type { font-weight: 600; font-size: 13px; color: #1a1a1a; }
+  .ev-standalone .time { font-size: 11px; color: #888; }
+  .ev-standalone .dur { font-size: 10px; padding: 2px 7px; border-radius: 6px; }
+
+  /* Add event button */
+  .add-event-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 88px; display: flex; align-items: center; justify-content: center; padding-bottom: 16px; background: #fff; border-top: 1px solid #eee; }
+  .add-event-btn { background: #1a1a1a; color: #fff; border: none; border-radius: 16px; padding: 14px 40px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+
+  /* Stat rows */
+  .stat { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+  .stat:last-child { border: none; }
+  .stat-l { font-size: 13px; color: #555; }
+  .stat-v { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+
+  /* Timeline */
+  .tl { padding: 0 4px; }
+  .tl-item { display: flex; gap: 10px; }
+  .tl-rail { width: 20px; display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .tl-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; }
+  .tl-line { flex: 1; width: 2px; background: #e0e0e0; margin: 3px 0; }
+  .tl-body { flex: 1; padding-bottom: 14px; }
+  .tl-body .tl-t { font-weight: 600; font-size: 13px; color: #1a1a1a; }
+  .tl-body .tl-s { font-size: 11px; color: #888; margin-top: 1px; }
+  .dot-seg { background: #1967d2; }
+  .dot-burp { background: #e65100; }
+  .dot-spill { background: #1565c0; }
+  .dot-cough { background: #c62828; }
+
+  /* Heatmap / graph */
+  .graph-box { background: #fafafa; border-radius: 14px; padding: 14px; margin: 12px 0; border: 1px solid #eee; }
+  .graph-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 10px; }
+  .heatmap { display: grid; grid-template-columns: 40px repeat(24,1fr); gap: 2px; font-size: 9px; }
+  .hm-label { color: #aaa; display: flex; align-items: center; }
+  .hm-cell { height: 14px; border-radius: 2px; }
+  .hm-0 { background: #f5f5f5; }
+  .hm-1 { background: #c8e6c9; }
+  .hm-2 { background: #81c784; }
+  .hm-3 { background: #43a047; }
+  .hm-axis { display: flex; margin-top: 4px; padding-left: 40px; }
+  .hm-axis span { flex: 1; text-align: center; font-size: 8px; color: #bbb; }
+
+  /* AI card */
+  .ai-card { background: #f0f7ff; border-radius: 14px; padding: 14px 16px; margin: 10px 0; border: 1px solid #d0e3ff; }
+  .ai-card .ai-badge { font-size: 10px; font-weight: 700; color: #1967d2; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .ai-card .ai-text { font-size: 13px; color: #333; line-height: 1.5; }
+  .ai-card .read-more { font-size: 12px; font-weight: 600; color: #1967d2; margin-top: 8px; cursor: pointer; }
+
+  /* Quick log overlay */
+  .ql-overlay { position: absolute; bottom: 0; left: 0; right: 0; top: 0; background: rgba(0,0,0,.45); display: flex; flex-direction: column; justify-content: flex-end; }
+  .ql-panel { background: #fff; border-radius: 24px 24px 0 0; padding: 20px 20px 36px; }
+  .ql-handle { width: 40px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 16px; }
+  .ql-title { font-size: 16px; font-weight: 700; color: #1a1a1a; margin-bottom: 16px; }
+  .ql-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .ql-item { border-radius: 14px; padding: 16px 8px; text-align: center; cursor: pointer; }
+  .ql-item .qi-icon { font-size: 28px; margin-bottom: 6px; }
+  .ql-item .qi-label { font-weight: 600; font-size: 13px; }
+  .ql-item .qi-hint { font-size: 10px; margin-top: 2px; opacity: .7; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; padding: 10px 0; }
+  .tab { flex: 1; text-align: center; padding: 8px; font-size: 12px; font-weight: 500; color: #888; border-radius: 10px; cursor: pointer; }
+  .tab.active { background: #1a1a1a; color: #fff; }
+
+  /* Mini cards for sleep / nappy */
+  .mini-card { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fafafa; border-radius: 12px; margin-bottom: 8px; border: 1px solid #eee; }
+  .mini-icon { font-size: 20px; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .mini-icon-nappy { background: #fff8e1; }
+  .mini-icon-sleep { background: #e8eaf6; }
+  .mini-info { flex: 1; }
+  .mini-type { font-weight: 600; font-size: 13px; color: #1a1a1a; }
+  .mini-time { font-size: 11px; color: #888; }
+  .mini-badge { font-size: 10px; padding: 2px 8px; border-radius: 6px; }
+
+  /* Segment start buttons (for new / active feed) */
+  .seg-btns { display: flex; gap: 10px; margin: 16px 0; }
+  .seg-btn { flex: 1; padding: 18px 8px; border-radius: 14px; border: 2px solid #eee; background: #fff; text-align: center; cursor: pointer; transition: all .15s; }
+  .seg-btn:hover { border-color: #ccc; background: #fafafa; }
+  .seg-btn .sb-icon { font-size: 28px; margin-bottom: 6px; }
+  .seg-btn .sb-label { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+  .seg-btn-left { border-color: #c5dbf7; }
+  .seg-btn-left:hover { background: #e8f0fe; }
+  .seg-btn-right { border-color: #f5c6c2; }
+  .seg-btn-right:hover { background: #fce8e6; }
+  .seg-btn-bottle { border-color: #b7dfcb; }
+  .seg-btn-bottle:hover { background: #e6f4ea; }
+
+  /* Quick event buttons during active feed */
+  .quick-events { display: flex; gap: 8px; margin: 12px 0; }
+  .qe-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 14px 8px; border-radius: 12px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .qe-burp { background: #fff3e0; color: #e65100; }
+  .qe-spill { background: #e3f2fd; color: #1565c0; }
+  .qe-cough { background: #fce4ec; color: #c62828; }
+
+  /* AI tabs */
+  .ai-tabs { display: flex; gap: 4px; margin: 8px 0 16px; }
+  .ai-tab { flex: 1; text-align: center; padding: 9px; font-size: 13px; font-weight: 500; color: #888; border-radius: 10px; cursor: pointer; background: #f5f5f5; }
+  .ai-tab.active { background: #1967d2; color: #fff; }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Baby Luki — Complete UI v2</h1>
+<p class="page-sub">All modules: feeding, events, sleep, nappies, AI insights</p>
+
+<!-- ==================== ROW 1: MAIN SCREENS ==================== -->
+<div class="row">
+<div class="row-label">Core Screens</div>
+
+<!-- SCREEN 1: Day Overview -->
+<div class="phone">
+  <div class="screen-label">1 · Day Overview</div>
+  <div class="status-bar">9:41</div>
+  <div class="header">
+    <h2>Thursday, Mar 12</h2>
+    <div class="sub">Luki — 8 weeks old</div>
+  </div>
+  <div class="content">
+
+    <div class="tabs">
+      <div class="tab active">Day</div>
+      <div class="tab">Stats</div>
+    </div>
+
+    <div class="pills">
+      <div class="pill">🍼 <span class="v">6</span> feeds</div>
+      <div class="pill">💨 <span class="v">4</span> burps</div>
+      <div class="pill">💧 <span class="v">2</span> spills</div>
+      <div class="pill">😤 <span class="v">3</span> coughs</div>
+      <div class="pill">🫢 <span class="v">1</span> hiccup</div>
+      <div class="pill">😴 <span class="v">3h 20m</span></div>
+      <div class="pill">🧷 <span class="v">5</span> nappies</div>
+    </div>
+
+    <!-- AI summary with "Read more" link -->
+    <div class="ai-card">
+      <div class="ai-badge">✨ AI Summary</div>
+      <div class="ai-text">Luki had a solid day — 6 feeds averaging 22 min each, mostly breast. Spills only after bottle feeds. On track with yesterday's routine.</div>
+      <div class="read-more">Read more →</div>
+    </div>
+
+    <!-- Active hiccup -->
+    <div class="banner banner-hiccup">
+      <div class="pulse pulse-purple"></div>
+      <div class="banner-info">
+        <div class="banner-title" style="color:#4a148c">Hiccups in progress</div>
+        <div class="banner-sub" style="color:#7b1fa2">Started 3 min ago</div>
+      </div>
+      <button class="btn-sm btn-purple">Stop</button>
+    </div>
+
+    <div class="section">Feeds</div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-time">08:15 – 08:42</span>
+        <span class="card-badge">27 min</span>
+      </div>
+      <div class="tags">
+        <span class="tag t-left">L 12m</span>
+        <span class="tag t-right">R 10m</span>
+      </div>
+      <div class="ev-row">
+        <span class="tag t-burp">💨 08:30</span>
+        <span class="tag t-burp">💨 08:41</span>
+        <span class="tag t-spill">💧 08:44</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-time">11:00 – 11:25</span>
+        <span class="card-badge">25 min</span>
+      </div>
+      <div class="tags">
+        <span class="tag t-bottle">🍼 120ml</span>
+      </div>
+      <div class="ev-row">
+        <span class="tag t-burp">💨 11:15</span>
+        <span class="tag t-cough">😤 11:18</span>
+        <span class="tag t-spill">💧 11:28</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-time">14:10 – 14:35</span>
+        <span class="card-badge">25 min</span>
+      </div>
+      <div class="tags">
+        <span class="tag t-left">L 15m</span>
+        <span class="tag t-right">R 8m</span>
+      </div>
+      <div class="ev-row">
+        <span class="tag t-burp">💨 14:34</span>
+      </div>
+    </div>
+
+    <div class="section">Sleep</div>
+    <div class="mini-card">
+      <div class="mini-icon mini-icon-sleep">😴</div>
+      <div class="mini-info">
+        <div class="mini-type">Nap</div>
+        <div class="mini-time">09:00 – 10:15</div>
+      </div>
+      <span class="mini-badge" style="background:#e8eaf6;color:#3949ab;">1h 15m</span>
+    </div>
+    <div class="mini-card">
+      <div class="mini-icon mini-icon-sleep">😴</div>
+      <div class="mini-info">
+        <div class="mini-type">Nap</div>
+        <div class="mini-time">12:30 – 13:45</div>
+      </div>
+      <span class="mini-badge" style="background:#e8eaf6;color:#3949ab;">1h 15m</span>
+    </div>
+
+    <div class="section">Nappies</div>
+    <div class="mini-card">
+      <div class="mini-icon mini-icon-nappy">🧷</div>
+      <div class="mini-info"><div class="mini-type">Wet</div><div class="mini-time">07:30</div></div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-icon mini-icon-nappy">🧷</div>
+      <div class="mini-info"><div class="mini-type">Dirty</div><div class="mini-time">09:15</div></div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-icon mini-icon-nappy">🧷</div>
+      <div class="mini-info"><div class="mini-type">Mixed</div><div class="mini-time">11:45</div></div>
+    </div>
+
+    <div class="section">Standalone Events</div>
+    <div class="ev-standalone">
+      <div class="ev-icon" style="background:#f3e5f5">🫢</div>
+      <div class="info"><div class="type">Hiccups</div><div class="time">10:20 – 10:28</div></div>
+      <span class="dur" style="background:#f3e5f5;color:#7b1fa2">8 min</span>
+    </div>
+    <div class="ev-standalone">
+      <div class="ev-icon" style="background:#fff3e0">💨</div>
+      <div class="info"><div class="type">Burp</div><div class="time">13:45</div></div>
+    </div>
+  </div>
+
+  <div class="add-event-bar">
+    <button class="add-event-btn">＋ Add event</button>
+  </div>
+</div>
+
+<!-- SCREEN 2: Quick Log -->
+<div class="phone">
+  <div class="screen-label">2 · Quick Log</div>
+  <div class="status-bar">9:41</div>
+  <div class="header">
+    <h2>Thursday, Mar 12</h2>
+    <div class="sub">Luki — 8 weeks old</div>
+  </div>
+  <div class="content" style="opacity:.25;pointer-events:none">
+    <div class="pills"><div class="pill">🍼 <span class="v">6</span> feeds</div></div>
+    <div class="card"><div class="card-head"><span class="card-time">08:15 – 08:42</span></div></div>
+  </div>
+
+  <div class="ql-overlay">
+    <div class="ql-panel">
+      <div class="ql-handle"></div>
+      <div class="ql-title">Add event</div>
+      <div class="ql-grid">
+        <div class="ql-item" style="background:#e6f4ea;color:#137333;">
+          <div class="qi-icon">🍼</div>
+          <div class="qi-label">Feed</div>
+          <div class="qi-hint">Start session</div>
+        </div>
+        <div class="ql-item" style="background:#fff3e0;color:#e65100;">
+          <div class="qi-icon">💨</div>
+          <div class="qi-label">Burp</div>
+          <div class="qi-hint">Log now</div>
+        </div>
+        <div class="ql-item" style="background:#e3f2fd;color:#1565c0;">
+          <div class="qi-icon">💧</div>
+          <div class="qi-label">Spill</div>
+          <div class="qi-hint">Log now</div>
+        </div>
+        <div class="ql-item" style="background:#fce4ec;color:#c62828;">
+          <div class="qi-icon">😤</div>
+          <div class="qi-label">Cough</div>
+          <div class="qi-hint">Log now</div>
+        </div>
+        <div class="ql-item" style="background:#f3e5f5;color:#7b1fa2;">
+          <div class="qi-icon">🫢</div>
+          <div class="qi-label">Hiccup</div>
+          <div class="qi-hint">Start timer</div>
+        </div>
+        <div class="ql-item" style="background:#e8eaf6;color:#3949ab;">
+          <div class="qi-icon">😴</div>
+          <div class="qi-label">Sleep</div>
+          <div class="qi-hint">Start timer</div>
+        </div>
+        <div class="ql-item" style="background:#fff8e1;color:#f9a825;">
+          <div class="qi-icon">🧷</div>
+          <div class="qi-label">Nappy</div>
+          <div class="qi-hint">Log change</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 3: Session Detail -->
+<div class="phone">
+  <div class="screen-label">3 · Session Detail</div>
+  <div class="status-bar">9:41</div>
+  <div class="header">
+    <div class="back-link">← Day overview</div>
+    <h2>Session Detail</h2>
+    <div class="sub">08:15 – 08:42 · Morning feed</div>
+  </div>
+  <div class="content">
+
+    <div class="pills">
+      <div class="pill"><span class="v">27</span> min total</div>
+      <div class="pill"><span class="v">22</span> min active</div>
+      <div class="pill">💨 <span class="v">2</span></div>
+      <div class="pill">💧 <span class="v">1</span></div>
+      <div class="pill">😤 <span class="v">1</span></div>
+    </div>
+
+    <div class="section">Timeline</div>
+    <div class="tl">
+      <div class="tl-item">
+        <div class="tl-rail"><div class="tl-dot dot-seg"></div><div class="tl-line"></div></div>
+        <div class="tl-body"><div class="tl-t">Left breast</div><div class="tl-s">08:15 – 08:27 · 12 min</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-rail"><div class="tl-dot dot-cough"></div><div class="tl-line"></div></div>
+        <div class="tl-body"><div class="tl-t" style="color:#c62828">Cough</div><div class="tl-s">08:24</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-rail"><div class="tl-dot dot-burp"></div><div class="tl-line"></div></div>
+        <div class="tl-body"><div class="tl-t" style="color:#e65100">Burp</div><div class="tl-s">08:30</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-rail"><div class="tl-dot dot-seg"></div><div class="tl-line"></div></div>
+        <div class="tl-body"><div class="tl-t">Right breast</div><div class="tl-s">08:30 – 08:40 · 10 min</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-rail"><div class="tl-dot dot-burp"></div><div class="tl-line"></div></div>
+        <div class="tl-body"><div class="tl-t" style="color:#e65100">Burp</div><div class="tl-s">08:41</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-rail"><div class="tl-dot dot-spill"></div></div>
+        <div class="tl-body"><div class="tl-t" style="color:#1565c0">Spill</div><div class="tl-s">08:44 · 2 min after session</div></div>
+      </div>
+    </div>
+
+    <div style="height:16px"></div>
+    <div class="stat"><span class="stat-l">Total duration</span><span class="stat-v">27 min</span></div>
+    <div class="stat"><span class="stat-l">Active feeding</span><span class="stat-v">22 min</span></div>
+    <div class="stat"><span class="stat-l">Burps</span><span class="stat-v">2</span></div>
+    <div class="stat"><span class="stat-l">Spills</span><span class="stat-v">1</span></div>
+    <div class="stat"><span class="stat-l">Coughs</span><span class="stat-v">1</span></div>
+    <div class="stat"><span class="stat-l">Time to first burp</span><span class="stat-v">15 min</span></div>
+  </div>
+  <!-- No add-event button here — go back to day overview -->
+</div>
+
+</div>
+
+<!-- ==================== ROW 2: FEED FLOW ==================== -->
+<div class="row">
+<div class="row-label">Feed Flow</div>
+
+<!-- SCREEN 4: New Feed — Choose segment -->
+<div class="phone">
+  <div class="screen-label">4 · New Feed</div>
+  <div class="status-bar">9:41</div>
+  <div class="header">
+    <div class="back-link">← Day overview</div>
+    <h2>New Feed</h2>
+    <div class="sub">Start by choosing a side</div>
+  </div>
+  <div class="content" style="display:flex;flex-direction:column;padding-top:40px;">
+
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="font-size:48px;font-weight:200;color:#ccc;font-variant-numeric:tabular-nums;">00:00</div>
+      <div style="font-size:13px;color:#aaa;margin-top:6px;">Session timer starts on first segment</div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:12px;text-align:center;">Start a segment</div>
+
+    <div class="seg-btns">
+      <div class="seg-btn seg-btn-left">
+        <div class="sb-icon">🤱</div>
+        <div class="sb-label" style="color:#1967d2;">Left</div>
+      </div>
+      <div class="seg-btn seg-btn-right">
+        <div class="sb-icon">🤱</div>
+        <div class="sb-label" style="color:#c5221f;">Right</div>
+      </div>
+      <div class="seg-btn seg-btn-bottle">
+        <div class="sb-icon">🍼</div>
+        <div class="sb-label" style="color:#137333;">Bottle</div>
+      </div>
+    </div>
+  </div>
+  <!-- No add-event button here -->
+</div>
+
+<!-- SCREEN 5: Active Feed — mid-session -->
+<div class="phone">
+  <div class="screen-label">5 · Active Feed</div>
+  <div class="status-bar">9:41</div>
+  <div class="header">
+    <h2>Active Feed</h2>
+    <div class="sub">Started 08:15</div>
+  </div>
+  <div class="content">
+
+    <!-- Active timer -->
+    <div style="text-align:center;padding:16px 0 8px;">
+      <div style="font-size:48px;font-weight:200;color:#137333;font-variant-numeric:tabular-nums;">12:34</div>
+      <div style="font-size:13px;color:#888;margin-top:4px;">Right breast · segment 2</div>
+      <button style="margin-top:12px;background:#c5221f;color:#fff;border:none;border-radius:10px;padding:10px 28px;font-size:14px;font-weight:600;cursor:pointer;">Stop segment</button>
+    </div>
+
+    <!-- Quick event buttons — big, easy to tap at 3am -->
+    <div class="quick-events">
+      <button class="qe-btn qe-burp">💨 Burp</button>
+      <button class="qe-btn qe-spill">💧 Spill</button>
+      <button class="qe-btn qe-cough">😤 Cough</button>
+    </div>
+
+    <div class="section">Completed segments</div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-time">Left breast</span>
+        <span class="card-badge">12 min</span>
+      </div>
+      <div style="font-size:11px;color:#888;">08:15 – 08:27</div>
+    </div>
+
+    <div class="section">Events this session</div>
+    <div class="ev-standalone">
+      <div class="ev-icon" style="background:#fff3e0">💨</div>
+      <div class="info"><div class="type">Burp</div><div class="time">08:28</div></div>
+    </div>
+
+    <!-- Start next segment or end -->
+    <div style="margin-top:20px;">
+      <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px;">Start next segment</div>
+      <div class="seg-btns">
+        <div class="seg-btn seg-btn-left">
+          <div class="sb-icon">🤱</div>
+          <div class="sb-label" style="color:#1967d2;">Left</div>
+        </div>
+        <div class="seg-btn seg-btn-right">
+          <div class="sb-icon">🤱</div>
+          <div class="sb-label" style="color:#c5221f;">Right</div>
+        </div>
+        <div class="seg-btn seg-btn-bottle">
+          <div class="sb-icon">🍼</div>
+          <div class="sb-label" style="color:#137333;">Bottle</div>
+        </div>
+      </div>
+    </div>
+
+    <button style="width:100%;margin-top:12px;padding:14px;border-radius:12px;border:2px solid #ccc;background:#fff;color:#555;font-size:14px;font-weight:600;cursor:pointer;">End feed</button>
+  </div>
+  <!-- No add-event button here -->
+</div>
+
+<!-- SCREEN 5b: Active Feed — between segments -->
+<div class="phone">
+  <div class="screen-label">5b · Between Segments</div>
+  <div class="status-bar">9:41</div>
+  <div class="header">
+    <h2>Active Feed</h2>
+    <div class="sub">Started 08:15 · paused</div>
+  </div>
+  <div class="content">
+
+    <!-- Session timer (no active segment) -->
+    <div style="text-align:center;padding:16px 0 8px;">
+      <div style="font-size:48px;font-weight:200;color:#888;font-variant-numeric:tabular-nums;">15:42</div>
+      <div style="font-size:13px;color:#aaa;margin-top:4px;">No active segment — burp time?</div>
+    </div>
+
+    <!-- Quick event buttons — prominent -->
+    <div class="quick-events">
+      <button class="qe-btn qe-burp">💨 Burp</button>
+      <button class="qe-btn qe-spill">💧 Spill</button>
+      <button class="qe-btn qe-cough">😤 Cough</button>
+    </div>
+
+    <div class="section">Completed segments</div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-time">Left breast</span>
+        <span class="card-badge">12 min</span>
+      </div>
+      <div style="font-size:11px;color:#888;">08:15 – 08:27</div>
+    </div>
+
+    <div class="section">Events this session</div>
+    <div class="ev-standalone">
+      <div class="ev-icon" style="background:#fff3e0">💨</div>
+      <div class="info"><div class="type">Burp</div><div class="time">08:28</div></div>
+    </div>
+    <div class="ev-standalone">
+      <div class="ev-icon" style="background:#fff3e0">💨</div>
+      <div class="info"><div class="type">Burp</div><div class="time">08:30</div></div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px;">Start next segment</div>
+      <div class="seg-btns">
+        <div class="seg-btn seg-btn-left">
+          <div class="sb-icon">🤱</div>
+          <div class="sb-label" style="color:#1967d2;">Left</div>
+        </div>
+        <div class="seg-btn seg-btn-right">
+          <div class="sb-icon">🤱</div>
+          <div class="sb-label" style="color:#c5221f;">Right</div>
+        </div>
+        <div class="seg-btn seg-btn-bottle">
+          <div class="sb-icon">🍼</div>
+          <div class="sb-label" style="color:#137333;">Bottle</div>
+        </div>
+      </div>
+    </div>
+
+    <button style="width:100%;margin-top:12px;padding:14px;border-radius:12px;border:2px solid #ccc;background:#fff;color:#555;font-size:14px;font-weight:600;cursor:pointer;">End feed</button>
+  </div>
+</div>
+
+</div>
+
+<!-- ==================== ROW 3: STATISTICS ==================== -->
+<div class="row">
+<div class="row-label">Statistics</div>
+
+<!-- SCREEN 6: Statistics (via Day/Stats tab) -->
+<div class="phone">
+  <div class="screen-label">6 · Statistics</div>
+  <div class="status-bar">9:41</div>
+  <div class="header">
+    <h2>Thursday, Mar 12</h2>
+    <div class="sub">Luki — 8 weeks old</div>
+  </div>
+  <div class="content">
+
+    <div class="tabs">
+      <div class="tab">Day</div>
+      <div class="tab active">Stats</div>
+    </div>
+
+    <div class="tabs" style="padding-top:0;">
+      <div class="tab active" style="background:#f0f0f0;color:#1a1a1a;">7 days</div>
+      <div class="tab" style="background:transparent;">14 days</div>
+      <div class="tab" style="background:transparent;">30 days</div>
+    </div>
+
+    <!-- Heatmap -->
+    <div class="graph-box">
+      <div class="graph-title">Feeding windows</div>
+      <div class="heatmap">
+        <div class="hm-label">Mon</div>
+        <div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div>
+        <div class="hm-label">Tue</div>
+        <div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div>
+        <div class="hm-label">Wed</div>
+        <div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div>
+        <div class="hm-label">Thu</div>
+        <div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div>
+        <div class="hm-label">Fri</div>
+        <div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div>
+        <div class="hm-label">Sat</div>
+        <div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div>
+        <div class="hm-label">Sun</div>
+        <div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div><div class="hm-cell hm-0"></div>
+      </div>
+      <div class="hm-axis">
+        <span>0</span><span></span><span></span><span>3</span><span></span><span></span><span>6</span><span></span><span></span><span>9</span><span></span><span></span><span>12</span><span></span><span></span><span>15</span><span></span><span></span><span>18</span><span></span><span></span><span>21</span><span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin:14px 0 8px;">Feeding</div>
+    <div class="stat"><span class="stat-l">Feeds per day</span><span class="stat-v">6.2</span></div>
+    <div class="stat"><span class="stat-l">Avg session</span><span class="stat-v">18.4 min</span></div>
+    <div class="stat"><span class="stat-l">Avg gap between feeds</span><span class="stat-v">2h 22m</span></div>
+    <div class="stat"><span class="stat-l">Daily bottle intake</span><span class="stat-v">240 ml</span></div>
+
+    <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin:18px 0 8px;">Events</div>
+    <div class="stat"><span class="stat-l">Burps per feed</span><span class="stat-v">1.3</span></div>
+    <div class="stat"><span class="stat-l">Spills per day</span><span class="stat-v">1.8</span></div>
+    <div class="stat"><span class="stat-l">Spills linked to feeds</span><span class="stat-v">72%</span></div>
+    <div class="stat"><span class="stat-l">Coughs per day</span><span class="stat-v">2.1</span></div>
+    <div class="stat"><span class="stat-l">Hiccup episodes / day</span><span class="stat-v">0.7</span></div>
+    <div class="stat"><span class="stat-l">Avg hiccup duration</span><span class="stat-v">6 min</span></div>
+
+    <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin:18px 0 8px;">Sleep &amp; Nappies</div>
+    <div class="stat"><span class="stat-l">Total sleep / day</span><span class="stat-v">14.2 h</span></div>
+    <div class="stat"><span class="stat-l">Longest stretch</span><span class="stat-v">4h 10m</span></div>
+    <div class="stat"><span class="stat-l">Nappies per day</span><span class="stat-v">6.4</span></div>
+    <div class="stat"><span class="stat-l">Wet / dirty ratio</span><span class="stat-v">3:2</span></div>
+  </div>
+  <div class="add-event-bar">
+    <button class="add-event-btn">＋ Add event</button>
+  </div>
+</div>
+
+</div>
+
+<!-- ==================== ROW 4: AI SCREENS ==================== -->
+<div class="row">
+<div class="row-label">AI Insights (Day / Week tabs)</div>
+
+<!-- SCREEN 7: AI Day Summary -->
+<div class="phone">
+  <div class="screen-label">7 · AI — Day</div>
+  <div class="status-bar">9:41</div>
+  <div class="header">
+    <div class="back-link">← Day overview</div>
+    <h2>AI Insights</h2>
+    <div class="sub">Thursday, Mar 12</div>
+  </div>
+  <div class="content">
+
+    <div class="ai-tabs">
+      <div class="ai-tab active">Today</div>
+      <div class="ai-tab">This Week</div>
+    </div>
+
+    <div class="ai-card" style="margin-top:4px;">
+      <div class="ai-badge">✨ Today's Summary</div>
+      <div class="ai-text" style="margin-bottom:12px;">Luki had a good day with 6 feeds, 3h 20m of naps, and 5 nappy changes. Feeding was mostly breast with one bottle top-up. Spills happened only after the bottle feed — breast-only sessions had no spills today.</div>
+      <div class="ai-text">Hiccups appeared once in the late morning, lasting 8 minutes. Sleep was well-distributed with two solid naps between feeds.</div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin:18px 0 10px;">Highlights</div>
+
+    <div class="card">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <span style="font-size:18px;">🍼</span>
+        <span style="font-weight:600;font-size:14px;">Feeding</span>
+      </div>
+      <div style="font-size:13px;color:#555;line-height:1.5;">6 feeds, 2h 12m total active time. Mostly left-start pattern (5 of 6). Bottle at 11am — 120ml formula.</div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <span style="font-size:18px;">💨💧</span>
+        <span style="font-weight:600;font-size:14px;">Burps &amp; Spills</span>
+      </div>
+      <div style="font-size:13px;color:#555;line-height:1.5;">4 burps (1.3 per feed — normal). 2 spills, both after bottle — consider smaller, slower feeds.</div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <span style="font-size:18px;">😴</span>
+        <span style="font-weight:600;font-size:14px;">Sleep</span>
+      </div>
+      <div style="font-size:13px;color:#555;line-height:1.5;">3h 20m across 2 naps. Both naps ~75 min — consistent and healthy for 8 weeks.</div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <span style="font-size:18px;">🧷</span>
+        <span style="font-weight:600;font-size:14px;">Nappies</span>
+      </div>
+      <div style="font-size:13px;color:#555;line-height:1.5;">5 changes — 2 wet, 2 dirty, 1 mixed. Good hydration indicators.</div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 8: AI Weekly Insights -->
+<div class="phone">
+  <div class="screen-label">8 · AI — Week</div>
+  <div class="status-bar">9:41</div>
+  <div class="header">
+    <div class="back-link">← Day overview</div>
+    <h2>AI Insights</h2>
+    <div class="sub">Mar 6 – Mar 12</div>
+  </div>
+  <div class="content">
+
+    <div class="ai-tabs">
+      <div class="ai-tab">Today</div>
+      <div class="ai-tab active">This Week</div>
+    </div>
+
+    <div class="ai-card" style="margin-top:4px;">
+      <div class="ai-badge">✨ Week in Review</div>
+      <div class="ai-text">Luki is settling into a more predictable routine this week. Feeds are spacing out to ~2.5 hours, up from 2 hours last week. Spills decreased after you reduced bottle speed on Wednesday. Hiccups remain infrequent and short.</div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin:18px 0 10px;">Patterns Detected</div>
+
+    <div class="card" style="border-left:3px solid #4caf50;">
+      <div style="font-weight:600;font-size:13px;color:#2e7d32;margin-bottom:4px;">📈 Routine forming</div>
+      <div style="font-size:13px;color:#555;line-height:1.5;">Feeds now cluster around 6am, 9am, 12pm, 3pm, 6pm, 9pm. Much more regular than last week.</div>
+    </div>
+
+    <div class="card" style="border-left:3px solid #1565c0;">
+      <div style="font-weight:600;font-size:13px;color:#1565c0;margin-bottom:4px;">💧 Spill pattern</div>
+      <div style="font-size:13px;color:#555;line-height:1.5;">82% of spills happened within 10 min of bottle feeds. Breast-only feeds rarely cause spills.</div>
+    </div>
+
+    <div class="card" style="border-left:3px solid #7b1fa2;">
+      <div style="font-weight:600;font-size:13px;color:#7b1fa2;margin-bottom:4px;">🫢 Hiccup trend</div>
+      <div style="font-size:13px;color:#555;line-height:1.5;">Hiccups mostly appear mid-morning (9–11am), averaging 6 min. Down from 9 min last week.</div>
+    </div>
+
+    <div class="card" style="border-left:3px solid #5c6bc0;">
+      <div style="font-weight:600;font-size:13px;color:#3949ab;margin-bottom:4px;">😴 Sleep improving</div>
+      <div style="font-size:13px;color:#555;line-height:1.5;">Longest night stretch increased from 3h 30m to 4h 10m. Day naps consistent at ~75 min.</div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin:18px 0 10px;">Week vs Week</div>
+    <div class="stat"><span class="stat-l">Feeds / day</span><span class="stat-v">6.2 → 6.0 <span style="color:#4caf50;font-size:11px;">▼</span></span></div>
+    <div class="stat"><span class="stat-l">Avg gap</span><span class="stat-v">2h 05m → 2h 22m <span style="color:#4caf50;font-size:11px;">▲</span></span></div>
+    <div class="stat"><span class="stat-l">Spills / day</span><span class="stat-v">2.4 → 1.8 <span style="color:#4caf50;font-size:11px;">▼</span></span></div>
+    <div class="stat"><span class="stat-l">Total sleep</span><span class="stat-v">13.5h → 14.2h <span style="color:#4caf50;font-size:11px;">▲</span></span></div>
+    <div class="stat"><span class="stat-l">Nappies / day</span><span class="stat-v">6.1 → 6.4</span></div>
+  </div>
+</div>
+
+</div>
+
+</body>
+</html>
