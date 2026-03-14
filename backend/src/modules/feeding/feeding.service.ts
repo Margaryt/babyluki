@@ -16,12 +16,12 @@ import {
   createSegment,
   stopSegment,
   getSessionsByBabyAndDate,
-  getSessionWithBurps,
+  getSessionWithEvents,
   getSessionsByDateRange,
   SessionWithSegments,
-  SessionWithSegmentsAndBurps,
+  SessionWithSegmentsAndEvents,
 } from './feeding.db';
-import { getBurpsByBabyAndDate, getBurpsByBabyAndDateRange } from '../burp/burp.db';
+import { getEventsByBabyAndDate, getEventsByBabyAndDateRange } from '../feeding-event/feeding-event.db';
 import { FeedingSegment as PrismaSegment } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
@@ -76,11 +76,11 @@ export async function removeFeedingSegment(
   await deleteSegment(segmentId);
 }
 
-/** Returns a detailed session view with computed summary fields and burps. */
+/** Returns a detailed session view with computed summary fields and events. */
 export async function getSessionDetail(
   sessionId: string
 ): Promise<FeedingSessionDetailResponse> {
-  const session = await getSessionWithBurps(sessionId);
+  const session = await getSessionWithEvents(sessionId);
   if (!session) {
     throw new Error(`Session ${sessionId} not found`);
   }
@@ -93,7 +93,7 @@ export async function getDayView(
   date: Date
 ): Promise<DayViewResponse> {
   const sessions = await getSessionsByBabyAndDate(babyId, date);
-  const burps = await getBurpsByBabyAndDate(babyId, date);
+  const events = await getEventsByBabyAndDate(babyId, date);
 
   const totalFeedingMinutes = sessions.reduce(
     (sum, s) => sum + computeActiveFeedingMinutes(s),
@@ -104,12 +104,18 @@ export async function getDayView(
     0
   );
 
+  const totalBurps = events.filter((e) => e.type === 'BURP').length;
+  const totalSpills = events.filter((e) => e.type === 'SPILL').length;
+  const totalCoughs = events.filter((e) => e.type === 'COUGH').length;
+
   return {
     date: formatDateString(date),
     totalSessions: sessions.length,
     totalFeedingMinutes: round(totalFeedingMinutes),
     totalBottleMl: round(totalBottleMl),
-    totalBurps: burps.length,
+    totalBurps,
+    totalSpills,
+    totalCoughs,
     sessions: sessions.map(serializeSession),
   };
 }
@@ -126,7 +132,7 @@ export async function getStats(
   from.setHours(0, 0, 0, 0);
 
   const sessions = await getSessionsByDateRange(babyId, from, to);
-  const allBurps = await getBurpsByBabyAndDateRange(babyId, from, to);
+  const allEvents = await getEventsByBabyAndDateRange(babyId, from, to);
 
   /** Group sessions by YYYY-MM-DD. */
   const byDay = new Map<string, SessionWithSegments[]>();
@@ -190,7 +196,15 @@ export async function getStats(
       avgSessionMinutes: round(totalActiveMinutes / totalSessions),
       avgGapMinutes: round(gapCount > 0 ? totalGapMinutes / gapCount : 0),
       dailyBottleMl: round(totalBottleMl / daysWithFeeds),
-      burpsPerSession: round(allBurps.length / totalSessions),
+      burpsPerSession: round(
+        allEvents.filter((e) => e.type === 'BURP').length / totalSessions
+      ),
+      spillsPerDay: round(
+        allEvents.filter((e) => e.type === 'SPILL').length / daysWithFeeds
+      ),
+      coughsPerDay: round(
+        allEvents.filter((e) => e.type === 'COUGH').length / daysWithFeeds
+      ),
     },
   };
 }
@@ -212,21 +226,30 @@ function serializeSession(session: SessionWithSegments): FeedingSessionResponse 
   };
 }
 
-/** Converts a Prisma session (with segments + burps) into a detail response. */
+/** Converts a Prisma session (with segments + events) into a detail response. */
 function serializeSessionDetail(
-  session: SessionWithSegmentsAndBurps
+  session: SessionWithSegmentsAndEvents
 ): FeedingSessionDetailResponse {
   const totalDurationMinutes = session.endedAt
     ? (session.endedAt.getTime() - session.startedAt.getTime()) / 60_000
     : null;
+
+  const burps = session.feedingEvents.filter((e) => e.type === 'BURP');
+  const spills = session.feedingEvents.filter((e) => e.type === 'SPILL');
+  const coughs = session.feedingEvents.filter((e) => e.type === 'COUGH');
 
   return {
     ...serializeSession(session),
     totalDurationMinutes: totalDurationMinutes !== null ? round(totalDurationMinutes) : null,
     activeFeedingMinutes: round(computeActiveFeedingMinutes(session)),
     totalBottleMl: round(computeTotalBottleMl(session)),
-    burpCount: session.burps.length,
-    burps: session.burps.map((b) => ({ timestamp: b.timestamp.toISOString() })),
+    burpCount: burps.length,
+    spillCount: spills.length,
+    coughCount: coughs.length,
+    events: session.feedingEvents.map((e) => ({
+      type: e.type as 'BURP' | 'SPILL' | 'COUGH',
+      timestamp: e.timestamp.toISOString(),
+    })),
   };
 }
 

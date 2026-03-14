@@ -2,7 +2,8 @@
 import express from 'express';
 import cors from 'cors';
 import feedingRoutes from './modules/feeding/feeding.routes';
-import burpRoutes from './modules/burp/burp.routes';
+import feedingEventRoutes from './modules/feeding-event/feeding-event.routes';
+import hiccupRoutes from './modules/hiccup/hiccup.routes';
 
 const app = express();
 
@@ -10,6 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/feedings', feedingRoutes);
-app.use('/burps', burpRoutes);
+app.use('/events', feedingEventRoutes);
+app.use('/hiccups', hiccupRoutes);
 
 export default app;

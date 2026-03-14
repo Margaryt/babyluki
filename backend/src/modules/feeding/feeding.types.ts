@@ -35,7 +35,7 @@ export interface FeedingSessionResponse {
   segments: FeedingSegmentResponse[];
 }
 
-/** A feeding session with computed summary fields and burp timestamps. */
+/** A feeding session with computed summary fields and event data. */
 export interface FeedingSessionDetailResponse extends FeedingSessionResponse {
   /** Total wall-clock minutes from session start to end. */
   totalDurationMinutes: number | null;
@@ -45,8 +45,12 @@ export interface FeedingSessionDetailResponse extends FeedingSessionResponse {
   totalBottleMl: number;
   /** Number of burps during this session. */
   burpCount: number;
-  /** Burp timestamps in chronological order. */
-  burps: Array<{ timestamp: string }>;
+  /** Number of spills during this session. */
+  spillCount: number;
+  /** Number of coughs during this session. */
+  coughCount: number;
+  /** All feeding events in chronological order. */
+  events: Array<{ type: 'BURP' | 'SPILL' | 'COUGH'; timestamp: string }>;
 }
 
 /** Day-level summary with all sessions. */
@@ -55,8 +59,12 @@ export interface DayViewResponse {
   totalSessions: number;
   totalFeedingMinutes: number;
   totalBottleMl: number;
-  /** Session burps + standalone burps for the day. */
+  /** All burps for the day (session + standalone). */
   totalBurps: number;
+  /** All spills for the day (session + standalone). */
+  totalSpills: number;
+  /** All coughs for the day (session + standalone). */
+  totalCoughs: number;
   sessions: FeedingSessionResponse[];
 }
 
@@ -72,6 +80,8 @@ export interface StatsResponse {
     avgGapMinutes: number;
     dailyBottleMl: number;
     burpsPerSession: number;
+    spillsPerDay: number;
+    coughsPerDay: number;
   };
 }
 

@@ -4,22 +4,22 @@ import { CreateSessionInput, CreateSegmentInput } from './feeding.types';
 import {
   FeedingSession as PrismaSession,
   FeedingSegment as PrismaSegment,
-  Burp as PrismaBurp,
+  FeedingEvent as PrismaFeedingEvent,
 } from '@prisma/client';
 
 /** The shape Prisma returns when we include segments on a session. */
 export type SessionWithSegments = PrismaSession & { segments: PrismaSegment[] };
 
-/** Session with segments and burps — used for session detail view. */
-export type SessionWithSegmentsAndBurps = SessionWithSegments & { burps: PrismaBurp[] };
+/** Session with segments and feeding events — used for session detail view. */
+export type SessionWithSegmentsAndEvents = SessionWithSegments & { feedingEvents: PrismaFeedingEvent[] };
 
 /** Shared include clause — segments ordered by sequence number. */
 const includeSegments = { segments: { orderBy: { order: 'asc' as const } } };
 
-/** Include clause for segments + burps. */
-const includeSegmentsAndBurps = {
+/** Include clause for segments + feeding events. */
+const includeSegmentsAndEvents = {
   segments: { orderBy: { order: 'asc' as const } },
-  burps: { orderBy: { timestamp: 'asc' as const } },
+  feedingEvents: { orderBy: { timestamp: 'asc' as const } },
 };
 
 // ---------------------------------------------------------------------------
@@ -84,18 +84,32 @@ export const getSessionsByBabyAndDate = async (
   });
 };
 
+/**
+ * Returns the currently active (not ended) session for a baby, if exactly one exists.
+ * Returns null if there are zero or multiple active sessions.
+ */
+export const getActiveSession = async (
+  babyId: string
+): Promise<PrismaSession | null> => {
+  const active = await prisma.feedingSession.findMany({
+    where: { babyId, endedAt: null },
+    take: 2,
+  });
+  return active.length === 1 ? active[0] : null;
+};
+
 /** Deletes a session and all its segments (cascade). */
 export const deleteSession = async (sessionId: string): Promise<void> => {
   await prisma.feedingSession.delete({ where: { id: sessionId } });
 };
 
-/** Fetches a single session with segments and burps for the detail view. */
-export const getSessionWithBurps = async (
+/** Fetches a single session with segments and feeding events for the detail view. */
+export const getSessionWithEvents = async (
   sessionId: string
-): Promise<SessionWithSegmentsAndBurps | null> => {
+): Promise<SessionWithSegmentsAndEvents | null> => {
   return prisma.feedingSession.findUnique({
     where: { id: sessionId },
-    include: includeSegmentsAndBurps,
+    include: includeSegmentsAndEvents,
   });
 };
 
