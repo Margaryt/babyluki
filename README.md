@@ -18,7 +18,7 @@ This is a monorepo with the following structure:
 
 - `backend/` — Node.js + Express + TypeScript API ([setup & API docs](backend/README.md))
 - `frontend/` — Mobile app (coming soon)
-- `docs/` — Data model diagrams and UI mockups
+- `docs/` — Data model diagrams and UI mockups. To upen UI mockups run ```open docs/ui-mockup-complete.html```
 
 The backend uses Prisma as the ORM with PostgreSQL. The data model centres on a Baby entity. Feedings use a session/segment pattern — a FeedingSession groups one or more FeedingSegments (e.g. left breast → right breast → bottle top-up). FeedingEvents (burps, spills, and coughs) are point-in-time events that can be standalone or linked to a session. Hiccups are duration events with startedAt/endedAt. Sleep and Nappy are simpler flat models. When auth is added later, babies will be linked to users.
 

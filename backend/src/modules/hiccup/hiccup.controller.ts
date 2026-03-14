@@ -36,7 +36,7 @@ export const stopHiccup = async (
 ) => {
   try {
     const { hiccupId } = req.params;
-    const hiccup = await stopHiccupEpisode(hiccupId, req.body.endedAt);
+    const hiccup = await stopHiccupEpisode(hiccupId, req.body?.endedAt);
     res.json(hiccup);
   } catch (err) {
     console.error(err);
