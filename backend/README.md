@@ -42,7 +42,7 @@ All examples below use `$BABY` as shorthand.
 ### Start a session
 
 ```bash
-curl -s -X POST http://localhost:3000/feeding/sessions/$BABY \
+curl -s -X POST http://localhost:3000/feedings/sessions/$BABY \
   -H "Content-Type: application/json" \
   -d '{ "notes": "Morning feed" }'
 ```
@@ -62,7 +62,7 @@ curl -s -X POST http://localhost:3000/feeding/sessions/$BABY \
 ### Session detail
 
 ```bash
-curl -s http://localhost:3000/feeding/sessions/$SESSION_ID
+curl -s http://localhost:3000/feedings/sessions/$SESSION_ID
 ```
 
 ```json
@@ -78,8 +78,9 @@ curl -s http://localhost:3000/feeding/sessions/$SESSION_ID
   "activeFeedingMinutes": 22.3,
   "totalBottleMl": 0,
   "burpCount": 1,
-  "burps": [
-    { "timestamp": "2026-03-13T08:23:00.000Z" }
+  "spillCount": 0,
+  "events": [
+    { "type": "BURP", "timestamp": "2026-03-13T08:23:00.000Z" }
   ]
 }
 ```
@@ -87,7 +88,7 @@ curl -s http://localhost:3000/feeding/sessions/$SESSION_ID
 ### End a session
 
 ```bash
-curl -s -X PATCH http://localhost:3000/feeding/sessions/$SESSION_ID/end \
+curl -s -X PATCH http://localhost:3000/feedings/sessions/$SESSION_ID/end \
   -H "Content-Type: application/json" \
   -d '{ "notes": "Fed well" }'
 ```
@@ -96,10 +97,10 @@ curl -s -X PATCH http://localhost:3000/feeding/sessions/$SESSION_ID/end \
 
 ```bash
 # Today (default)
-curl -s http://localhost:3000/feeding/sessions/day/$BABY
+curl -s http://localhost:3000/feedings/sessions/day/$BABY
 
 # Specific date
-curl -s "http://localhost:3000/feeding/sessions/day/$BABY?date=2026-03-12"
+curl -s "http://localhost:3000/feedings/sessions/day/$BABY?date=2026-03-12"
 ```
 
 ```json
@@ -109,6 +110,7 @@ curl -s "http://localhost:3000/feeding/sessions/day/$BABY?date=2026-03-12"
   "totalFeedingMinutes": 42.5,
   "totalBottleMl": 120,
   "totalBurps": 4,
+  "totalSpills": 2,
   "sessions": [ "..." ]
 }
 ```
@@ -117,10 +119,10 @@ curl -s "http://localhost:3000/feeding/sessions/day/$BABY?date=2026-03-12"
 
 ```bash
 # Last 7 days (default)
-curl -s http://localhost:3000/feeding/sessions/stats/$BABY
+curl -s http://localhost:3000/feedings/sessions/stats/$BABY
 
 # Last 14 days
-curl -s "http://localhost:3000/feeding/sessions/stats/$BABY?days=14"
+curl -s "http://localhost:3000/feedings/sessions/stats/$BABY?days=14"
 ```
 
 ```json
@@ -139,7 +141,8 @@ curl -s "http://localhost:3000/feeding/sessions/stats/$BABY?days=14"
     "avgSessionMinutes": 18.4,
     "avgGapMinutes": 142.5,
     "dailyBottleMl": 240,
-    "burpsPerSession": 1.3
+    "burpsPerSession": 1.3,
+    "spillsPerDay": 1.8
   }
 }
 ```
@@ -147,7 +150,7 @@ curl -s "http://localhost:3000/feeding/sessions/stats/$BABY?days=14"
 ### Delete a session
 
 ```bash
-curl -s -X DELETE http://localhost:3000/feeding/sessions/$SESSION_ID
+curl -s -X DELETE http://localhost:3000/feedings/sessions/$SESSION_ID
 # 204 No Content
 ```
 
@@ -158,7 +161,7 @@ curl -s -X DELETE http://localhost:3000/feeding/sessions/$SESSION_ID
 ### Add a segment
 
 ```bash
-curl -s -X POST http://localhost:3000/feeding/segments/$SESSION_ID \
+curl -s -X POST http://localhost:3000/feedings/segments/$SESSION_ID \
   -H "Content-Type: application/json" \
   -d '{ "side": "LEFT" }'
 ```
@@ -179,7 +182,7 @@ curl -s -X POST http://localhost:3000/feeding/segments/$SESSION_ID \
 For bottle feeds, include `volumeMl`:
 
 ```bash
-curl -s -X POST http://localhost:3000/feeding/segments/$SESSION_ID \
+curl -s -X POST http://localhost:3000/feedings/segments/$SESSION_ID \
   -H "Content-Type: application/json" \
   -d '{ "side": "BOTTLE", "volumeMl": 120 }'
 ```
@@ -187,7 +190,7 @@ curl -s -X POST http://localhost:3000/feeding/segments/$SESSION_ID \
 ### Stop a segment
 
 ```bash
-curl -s -X PATCH http://localhost:3000/feeding/segments/$SEGMENT_ID/stop \
+curl -s -X PATCH http://localhost:3000/feedings/segments/$SEGMENT_ID/stop \
   -H "Content-Type: application/json" \
   -d '{ "notes": "Good latch" }'
 ```
@@ -209,57 +212,122 @@ curl -s -X PATCH http://localhost:3000/feeding/segments/$SEGMENT_ID/stop \
 ### Delete a segment
 
 ```bash
-curl -s -X DELETE http://localhost:3000/feeding/segments/$SEGMENT_ID
+curl -s -X DELETE http://localhost:3000/feedings/segments/$SEGMENT_ID
 # 204 No Content
 ```
 
 ---
 
-## Burp endpoints
+## Feeding event endpoints (burps, spills & coughs)
 
-### Log a burp
+If a feeding session is currently active (not ended), events are automatically linked to it. Otherwise they are standalone.
+
+### Log a feeding event
 
 ```bash
-# Standalone burp
-curl -s -X POST http://localhost:3000/burp/$BABY \
+# Burp (auto-links to active session if one exists)
+curl -s -X POST http://localhost:3000/events/$BABY \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{ "type": "BURP" }'
 
-# Burp linked to a feeding session
-curl -s -X POST http://localhost:3000/burp/$BABY \
+# Spill with custom timestamp
+curl -s -X POST http://localhost:3000/events/$BABY \
   -H "Content-Type: application/json" \
-  -d '{ "sessionId": "a1b2c3..." }'
+  -d '{ "type": "SPILL", "timestamp": "2026-03-13T08:44:00.000Z" }'
 
-# Burp with custom timestamp
-curl -s -X POST http://localhost:3000/burp/$BABY \
+# Cough during a feed
+curl -s -X POST http://localhost:3000/events/$BABY \
   -H "Content-Type: application/json" \
-  -d '{ "timestamp": "2026-03-13T08:23:00.000Z" }'
+  -d '{ "type": "COUGH" }'
 ```
 
 ```json
 {
   "id": "g7h8i9...",
   "babyId": "00000000-...",
-  "sessionId": null,
+  "sessionId": "a1b2c3...",
+  "type": "BURP",
   "timestamp": "2026-03-13T08:23:00.000Z",
   "createdAt": "2026-03-13T08:23:00.000Z"
 }
 ```
 
-### Get burps by date
+### Get events by date
+
+```bash
+# All events today (default)
+curl -s http://localhost:3000/events/$BABY
+
+# Only spills on a specific date
+curl -s "http://localhost:3000/events/$BABY?date=2026-03-12&type=SPILL"
+```
+
+### Delete an event
+
+```bash
+curl -s -X DELETE http://localhost:3000/events/$EVENT_ID
+# 204 No Content
+```
+
+---
+
+## Hiccup endpoints
+
+If a feeding session is currently active (not ended), hiccups are automatically linked to it. Otherwise they are standalone.
+
+### Start a hiccup
+
+```bash
+# Auto-links to active session if one exists
+curl -s -X POST http://localhost:3000/hiccups/$BABY \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+```json
+{
+  "id": "j1k2l3...",
+  "babyId": "00000000-...",
+  "sessionId": null,
+  "startedAt": "2026-03-13T10:20:00.000Z",
+  "endedAt": null,
+  "createdAt": "2026-03-13T10:20:00.000Z"
+}
+```
+
+### Stop a hiccup
+
+```bash
+curl -s -X PATCH http://localhost:3000/hiccups/$HICCUP_ID/stop \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+```json
+{
+  "id": "j1k2l3...",
+  "babyId": "00000000-...",
+  "sessionId": null,
+  "startedAt": "2026-03-13T10:20:00.000Z",
+  "endedAt": "2026-03-13T10:28:00.000Z",
+  "createdAt": "2026-03-13T10:20:00.000Z"
+}
+```
+
+### Get hiccups by date
 
 ```bash
 # Today (default)
-curl -s http://localhost:3000/burp/$BABY
+curl -s http://localhost:3000/hiccups/$BABY
 
 # Specific date
-curl -s "http://localhost:3000/burp/$BABY?date=2026-03-12"
+curl -s "http://localhost:3000/hiccups/$BABY?date=2026-03-12"
 ```
 
-### Delete a burp
+### Delete a hiccup
 
 ```bash
-curl -s -X DELETE http://localhost:3000/burp/$BURP_ID
+curl -s -X DELETE http://localhost:3000/hiccups/$HICCUP_ID
 # 204 No Content
 ```
 

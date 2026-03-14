@@ -20,7 +20,7 @@ This is a monorepo with the following structure:
 - `frontend/` — Mobile app (coming soon)
 - `docs/` — Data model diagrams and UI mockups
 
-The backend uses Prisma as the ORM with PostgreSQL. The data model centres on a Baby entity. Feedings use a session/segment pattern — a FeedingSession groups one or more FeedingSegments (e.g. left breast → right breast → bottle top-up). Burps are tracked as standalone events or linked to a session. Sleep and Nappy are simpler flat models. When auth is added later, babies will be linked to users.
+The backend uses Prisma as the ORM with PostgreSQL. The data model centres on a Baby entity. Feedings use a session/segment pattern — a FeedingSession groups one or more FeedingSegments (e.g. left breast → right breast → bottle top-up). FeedingEvents (burps, spills, and coughs) are point-in-time events that can be standalone or linked to a session. Hiccups are duration events with startedAt/endedAt. Sleep and Nappy are simpler flat models. When auth is added later, babies will be linked to users.
 
 ## Building in thin slices
 

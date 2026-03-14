@@ -1,18 +1,20 @@
 /**
- * Burp module type definitions.
- * Burps can be standalone (outside a session) or linked to a feeding session.
+ * Hiccup module type definitions.
+ * A Hiccup is a duration event with startedAt and endedAt.
+ * Automatically linked to the active feeding session if one exists.
  */
 
 // ---------------------------------------------------------------------------
 // Response types (returned to the client)
 // ---------------------------------------------------------------------------
 
-/** A single burp event. */
-export interface BurpResponse {
+/** A single hiccup episode. */
+export interface HiccupResponse {
   id: string;
   babyId: string;
   sessionId: string | null;
-  timestamp: string;
+  startedAt: string;
+  endedAt: string | null;
   createdAt: string;
 }
 
@@ -20,20 +22,25 @@ export interface BurpResponse {
 // Request types (sent by the client)
 // ---------------------------------------------------------------------------
 
-/** POST /burp/:babyId */
-export interface CreateBurpRequest {
+/** POST /hiccups/:babyId — start a hiccup episode. */
+export interface CreateHiccupRequest {
   /** ISO string. Defaults to now() if omitted. */
-  timestamp?: string;
-  /** Link this burp to a feeding session. Null/omitted for standalone burps. */
-  sessionId?: string;
+  startedAt?: string;
+}
+
+/** PATCH /hiccups/:hiccupId/stop — stop a hiccup episode. */
+export interface StopHiccupRequest {
+  /** ISO string. Defaults to now() if omitted. */
+  endedAt?: string;
 }
 
 // ---------------------------------------------------------------------------
 // Internal types (add route params for the service/db layer)
 // ---------------------------------------------------------------------------
 
-/** {@link CreateBurpRequest} + identifiers from the route. */
-export interface CreateBurpInput extends CreateBurpRequest {
+/** {@link CreateHiccupRequest} + identifiers resolved by the service layer. */
+export interface CreateHiccupInput extends CreateHiccupRequest {
   babyId: string;
+  /** Resolved automatically from the active session. */
   sessionId?: string;
 }

@@ -19,7 +19,8 @@ model Baby {
   feedingSessions FeedingSession[]
   sleeps          Sleep[]
   nappies         Nappy[]
-  burps           Burp[]
+  feedingEvents   FeedingEvent[]
+  hiccups         Hiccup[]
 }
 
 /// A feeding session groups one or more segments (e.g. left breast → right breast → bottle top-up).
@@ -32,8 +33,9 @@ model FeedingSession {
   notes     String?
   createdAt DateTime         @default(now())
 
-  segments  FeedingSegment[]
-  burps     Burp[]
+  segments      FeedingSegment[]
+  feedingEvents FeedingEvent[]
+  hiccups       Hiccup[]
 
   @@index([babyId, startedAt])
 }
@@ -91,16 +93,38 @@ enum NappyType {
   MIXED
 }
 
-/// A burp event. Can be linked to a feeding session or standalone.
-model Burp {
+/// A point-in-time feeding event (burp or spill). Can be linked to a feeding session or standalone.
+model FeedingEvent {
+  id        String            @id @default(uuid())
+  babyId    String
+  baby      Baby              @relation(fields: [babyId], references: [id])
+  sessionId String?           /// Null for standalone events (outside a feeding session).
+  session   FeedingSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  type      FeedingEventType
+  timestamp DateTime
+  createdAt DateTime          @default(now())
+
+  @@index([babyId, timestamp])
+  @@index([sessionId])
+}
+
+enum FeedingEventType {
+  BURP
+  SPILL
+  COUGH
+}
+
+/// A hiccup episode with a start and end time. Can be linked to a feeding session or standalone.
+model Hiccup {
   id        String          @id @default(uuid())
   babyId    String
   baby      Baby            @relation(fields: [babyId], references: [id])
-  sessionId String?         /// Null for standalone burps (outside a feeding session).
+  sessionId String?         /// Null for standalone hiccups (outside a feeding session).
   session   FeedingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  timestamp DateTime
+  startedAt DateTime
+  endedAt   DateTime?       /// Null while hiccups are still in progress.
   createdAt DateTime        @default(now())
 
-  @@index([babyId, timestamp])
+  @@index([babyId, startedAt])
   @@index([sessionId])
 }
