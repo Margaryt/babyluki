@@ -1,11 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import TopNav from '@/components/TopNav';
 
 /**
  * Feed screen — Screen 4 from the mockup (New Feed).
  * Shows the timer and segment selection buttons.
- * Will be wired up to the API in step 5.
+ * Will be wired up to the API in a future PR.
  */
 export default function FeedScreen() {
   const colorScheme = useColorScheme();
@@ -21,9 +20,6 @@ export default function FeedScreen() {
       </View>
 
       <View style={styles.content}>
-        {/* Top navigation */}
-        <TopNav />
-
         {/* Timer */}
         <View style={styles.timerBlock}>
           <Text style={[styles.timer, { color: isDark ? '#555' : '#ccc' }]}>00:00</Text>
@@ -80,10 +76,10 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 22, fontWeight: '700' },
   headerSub: { fontSize: 13, marginTop: 2 },
 
-  content: { flex: 1, paddingHorizontal: 16, paddingTop: 0 },
+  content: { flex: 1, paddingHorizontal: 16, paddingTop: 40 },
 
   // Timer
-  timerBlock: { alignItems: 'center', marginTop: 24, marginBottom: 32 },
+  timerBlock: { alignItems: 'center', marginBottom: 32 },
   timer: { fontSize: 48, fontWeight: '200', fontVariant: ['tabular-nums'] },
   timerHint: { fontSize: 13, marginTop: 6 },
 

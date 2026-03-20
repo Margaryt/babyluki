@@ -21,7 +21,11 @@ export const createSession = async (
     const { babyId } = req.params;
     const session = await feedingService.startSession({ ...req.body, babyId });
     res.status(201).json(session);
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message?.includes('already active')) {
+      res.status(409).json({ error: err.message });
+      return;
+    }
     console.error(err);
     res.status(500).json({ error: 'Failed to create feeding session' });
   }

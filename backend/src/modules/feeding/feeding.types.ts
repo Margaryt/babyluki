@@ -53,6 +53,14 @@ export interface FeedingSessionDetailResponse extends FeedingSessionResponse {
   events: Array<{ type: 'BURP' | 'SPILL' | 'COUGH'; timestamp: string }>;
 }
 
+/** A feeding event (burp, spill, cough) as returned inside day view. */
+export interface DayViewEvent {
+  id: string;
+  sessionId: string | null;
+  type: 'BURP' | 'SPILL' | 'COUGH';
+  timestamp: string;
+}
+
 /** Day-level summary with all sessions. */
 export interface DayViewResponse {
   date: string;
@@ -66,6 +74,8 @@ export interface DayViewResponse {
   /** All coughs for the day (session + standalone). */
   totalCoughs: number;
   sessions: FeedingSessionResponse[];
+  /** All feeding events for the day, with sessionId for grouping onto cards. */
+  events: DayViewEvent[];
 }
 
 /** Statistics across multiple days (for heatmap and averages). */

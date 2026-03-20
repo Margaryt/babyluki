@@ -15,6 +15,7 @@ import {
   deleteSegment,
   createSegment,
   stopSegment,
+  getActiveSession,
   getSessionsByBabyAndDate,
   getSessionWithEvents,
   getSessionsByDateRange,
@@ -28,10 +29,14 @@ import { FeedingSegment as PrismaSegment } from '@prisma/client';
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Creates a new feeding session for a baby. */
+/** Creates a new feeding session for a baby. Throws if one is already active. */
 export async function startSession(
   input: CreateSessionInput
 ): Promise<FeedingSessionResponse> {
+  const active = await getActiveSession(input.babyId);
+  if (active) {
+    throw new Error('A feeding session is already active. End it before starting a new one.');
+  }
   const session = await createSession(input);
   return serializeSession({ ...session, segments: [] });
 }
@@ -117,6 +122,12 @@ export async function getDayView(
     totalSpills,
     totalCoughs,
     sessions: sessions.map(serializeSession),
+    events: events.map((e) => ({
+      id: e.id,
+      sessionId: e.sessionId,
+      type: e.type as 'BURP' | 'SPILL' | 'COUGH',
+      timestamp: e.timestamp.toISOString(),
+    })),
   };
 }
 

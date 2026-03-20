@@ -33,7 +33,15 @@ npm run web       # Start and open in browser
 
 ## API URL
 
-The app talks to `https://babyluki-production.up.railway.app` by default (set in `constants/Api.ts`). The `start:local` script overrides this to `http://localhost:3000` via the `EXPO_PUBLIC_API_URL` env var.
+The app talks to `https://babyluki-production.up.railway.app` by default (set in `constants/Api.ts`). The `start:local` script reads from `.env.local` (git-ignored) to override this.
+
+To set up local development, create a `.env.local` file with your machine's LAN IP:
+
+```
+EXPO_PUBLIC_API_URL=http://192.168.1.YOUR_IP:3000
+```
+
+Find your IP with `ipconfig getifaddr en0` on Mac.
 
 ## Build for App Store
 
