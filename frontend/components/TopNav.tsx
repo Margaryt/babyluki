@@ -3,7 +3,6 @@ import { useRouter, usePathname } from 'expo-router';
 
 const TABS = [
   { label: 'Day', path: '/' },
-  { label: 'Feed', path: '/feed' },
   { label: 'Stats', path: '/stats' },
 ];
 

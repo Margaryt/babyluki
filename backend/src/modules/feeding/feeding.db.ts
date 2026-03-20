@@ -85,17 +85,16 @@ export const getSessionsByBabyAndDate = async (
 };
 
 /**
- * Returns the currently active (not ended) session for a baby, if exactly one exists.
- * Returns null if there are zero or multiple active sessions.
+ * Returns the currently active (not ended) session for a baby, if one exists.
+ * Only one active session should exist at a time (enforced by the service layer).
  */
 export const getActiveSession = async (
   babyId: string
 ): Promise<PrismaSession | null> => {
-  const active = await prisma.feedingSession.findMany({
+  return prisma.feedingSession.findFirst({
     where: { babyId, endedAt: null },
-    take: 2,
+    orderBy: { startedAt: 'desc' },
   });
-  return active.length === 1 ? active[0] : null;
 };
 
 /** Deletes a session and all its segments (cascade). */

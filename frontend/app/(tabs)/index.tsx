@@ -1,57 +1,75 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  useColorScheme,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TopNav from '@/components/TopNav';
+import { feedingApi, hiccupApi } from '@/lib/api';
+import type {
+  DayViewResponse,
+  DayViewEvent,
+  HiccupResponse,
+  FeedingSessionResponse,
+  SegmentSide,
+} from '@/lib/api';
+import { BABY_ID, BABY_NAME } from '@/constants/Baby';
 
 // ---------------------------------------------------------------------------
-// Mock data — will be replaced with API calls in step 4
+// Helpers
 // ---------------------------------------------------------------------------
-const MOCK_PILLS = [
-  { emoji: '🍼', value: '6', label: 'feeds' },
-  { emoji: '💨', value: '4', label: 'burps' },
-  { emoji: '💧', value: '2', label: 'spills' },
-  { emoji: '😤', value: '3', label: 'coughs' },
-  { emoji: '🫢', value: '1', label: 'hiccup' },
-  { emoji: '😴', value: '3h 20m', label: '' },
-  { emoji: '🧷', value: '5', label: 'nappies' },
-];
 
-const MOCK_SESSIONS = [
-  {
-    id: '1',
-    time: '08:15 – 08:42',
-    duration: '27 min',
-    segments: [
-      { label: 'L 12m', type: 'left' as const },
-      { label: 'R 10m', type: 'right' as const },
-    ],
-    events: [
-      { emoji: '💨', time: '08:30', type: 'burp' as const },
-      { emoji: '💨', time: '08:41', type: 'burp' as const },
-      { emoji: '💧', time: '08:44', type: 'spill' as const },
-    ],
-  },
-  {
-    id: '2',
-    time: '11:00 – 11:25',
-    duration: '25 min',
-    segments: [{ label: '🍼 120ml', type: 'bottle' as const }],
-    events: [
-      { emoji: '💨', time: '11:15', type: 'burp' as const },
-      { emoji: '😤', time: '11:18', type: 'cough' as const },
-      { emoji: '💧', time: '11:28', type: 'spill' as const },
-    ],
-  },
-  {
-    id: '3',
-    time: '14:10 – 14:35',
-    duration: '25 min',
-    segments: [
-      { label: 'L 15m', type: 'left' as const },
-      { label: 'R 8m', type: 'right' as const },
-    ],
-    events: [{ emoji: '💨', time: '14:34', type: 'burp' as const }],
-  },
-];
+/** Format an ISO timestamp as HH:MM. */
+function fmtTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Compute duration in minutes between two ISO timestamps. */
+function durationMin(start: string, end: string | null): number | null {
+  if (!end) return null;
+  return Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60_000);
+}
+
+/** Map segment side to a display-friendly label + type. */
+function segmentLabel(side: SegmentSide, startedAt: string, endedAt: string | null, volumeMl: number | null) {
+  const dur = durationMin(startedAt, endedAt);
+  const durStr = dur !== null ? ` ${dur}m` : '';
+  switch (side) {
+    case 'LEFT':
+      return { label: `L${durStr}`, type: 'left' as const };
+    case 'RIGHT':
+      return { label: `R${durStr}`, type: 'right' as const };
+    case 'BOTTLE':
+      return { label: `🍼${volumeMl ? ` ${volumeMl}ml` : ''}${durStr}`, type: 'bottle' as const };
+  }
+}
+
+/** Map event type to emoji. */
+function eventEmoji(type: string): string {
+  switch (type) {
+    case 'BURP': return '💨';
+    case 'SPILL': return '💧';
+    case 'COUGH': return '😤';
+    default: return '?';
+  }
+}
+
+/** Map event type to tag type key. */
+function eventTagType(type: string): string {
+  switch (type) {
+    case 'BURP': return 'burp';
+    case 'SPILL': return 'spill';
+    case 'COUGH': return 'cough';
+    default: return 'burp';
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -62,6 +80,12 @@ export default function DayScreen() {
   const isDark = colorScheme === 'dark';
   const c = isDark ? dark : light;
 
+  const [dayView, setDayView] = useState<DayViewResponse | null>(null);
+  const [hiccups, setHiccups] = useState<HiccupResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -69,79 +93,179 @@ export default function DayScreen() {
     day: 'numeric',
   });
 
+  const fetchData = useCallback(async () => {
+    try {
+      setError(null);
+      const [dv, hic] = await Promise.all([
+        feedingApi.getDayView(BABY_ID),
+        hiccupApi.getByDate(BABY_ID),
+      ]);
+      setDayView(dv);
+      setHiccups(hic);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to load data');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData().finally(() => setLoading(false));
+  }, [fetchData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, [fetchData]);
+
+  // Build summary pills from real data
+  const pills = dayView
+    ? [
+        { emoji: '🍼', value: String(dayView.totalSessions), label: 'feeds' },
+        { emoji: '💨', value: String(dayView.totalBurps), label: 'burps' },
+        { emoji: '💧', value: String(dayView.totalSpills), label: 'spills' },
+        { emoji: '😤', value: String(dayView.totalCoughs), label: 'coughs' },
+        { emoji: '🫢', value: String(hiccups.length), label: hiccups.length === 1 ? 'hiccup' : 'hiccups' },
+      ]
+    : [];
+
+  // Group events by sessionId for display on cards
+  const eventsBySession = new Map<string, DayViewEvent[]>();
+  if (dayView) {
+    for (const ev of dayView.events) {
+      if (ev.sessionId) {
+        const arr = eventsBySession.get(ev.sessionId) ?? [];
+        arr.push(ev);
+        eventsBySession.set(ev.sessionId, arr);
+      }
+    }
+  }
+
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: c.bg }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: c.text }]}>{dateStr}</Text>
-        <Text style={[styles.headerSub, { color: c.textSecondary }]}>Luki — 8 weeks old</Text>
+        <Text style={[styles.headerSub, { color: c.textSecondary }]}>{BABY_NAME}</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Top navigation */}
         <TopNav />
 
-        {/* Summary pills */}
-        <View style={styles.pillRow}>
-          {MOCK_PILLS.map((p, i) => (
-            <View key={i} style={[styles.pill, { backgroundColor: c.card }]}>
-              <Text style={styles.pillEmoji}>{p.emoji}</Text>
-              <Text style={[styles.pillValue, { color: c.text }]}>{p.value}</Text>
-              {p.label ? <Text style={[styles.pillLabel, { color: c.textSecondary }]}>{p.label}</Text> : null}
-            </View>
-          ))}
-        </View>
+        {/* Loading state */}
+        {loading && (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={c.textSecondary} />
+          </View>
+        )}
 
-        {/* AI Summary card */}
-        <View style={[styles.aiCard, isDark && styles.aiCardDark]}>
-          <Text style={styles.aiBadge}>✨ AI Summary</Text>
-          <Text style={[styles.aiText, { color: isDark ? '#ddd' : '#333' }]}>
-            Luki had a solid day — 6 feeds averaging 22 min each, mostly breast. Spills only after
-            bottle feeds. On track with yesterday's routine.
-          </Text>
-          <TouchableOpacity>
-            <Text style={styles.aiReadMore}>Read more →</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Error state */}
+        {error && !loading && (
+          <View style={[styles.errorBox, isDark && styles.errorBoxDark]}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={() => { setLoading(true); fetchData().finally(() => setLoading(false)); }}>
+              <Text style={styles.retryText}>Tap to retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-        {/* Section: Feeds */}
-        <Text style={[styles.section, { color: c.textSecondary }]}>Feeds</Text>
-
-        {MOCK_SESSIONS.map((s) => (
-          <View key={s.id} style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
-            <View style={styles.cardHead}>
-              <Text style={[styles.cardTime, { color: c.text }]}>{s.time}</Text>
-              <View style={[styles.badge, { backgroundColor: isDark ? '#3A3A3C' : '#f0f0f0' }]}>
-                <Text style={[styles.badgeText, { color: c.textSecondary }]}>{s.duration}</Text>
-              </View>
-            </View>
-
-            {/* Segment tags */}
-            <View style={styles.tagRow}>
-              {s.segments.map((seg, i) => (
-                <View key={i} style={[styles.tag, tagStyles[seg.type]]}>
-                  <Text style={[styles.tagText, tagTextStyles[seg.type]]}>{seg.label}</Text>
+        {/* Data loaded */}
+        {!loading && !error && dayView && (
+          <>
+            {/* Summary pills */}
+            <View style={styles.pillRow}>
+              {pills.map((p, i) => (
+                <View key={i} style={[styles.pill, { backgroundColor: c.card }]}>
+                  <Text style={styles.pillEmoji}>{p.emoji}</Text>
+                  <Text style={[styles.pillValue, { color: c.text }]}>{p.value}</Text>
+                  {p.label ? (
+                    <Text style={[styles.pillLabel, { color: c.textSecondary }]}>{p.label}</Text>
+                  ) : null}
                 </View>
               ))}
             </View>
 
-            {/* Event chips */}
-            {s.events.length > 0 && (
-              <View style={[styles.eventRow, { borderTopColor: c.border }]}>
-                {s.events.map((ev, i) => (
-                  <View key={i} style={[styles.tag, tagStyles[ev.type]]}>
-                    <Text style={[styles.tagText, tagTextStyles[ev.type]]}>
-                      {ev.emoji} {ev.time}
-                    </Text>
-                  </View>
-                ))}
+            {/* AI Summary card */}
+            <View style={[styles.aiCard, isDark && styles.aiCardDark]}>
+              <Text style={styles.aiBadge}>✨ AI Summary</Text>
+              <Text style={[styles.aiText, { color: isDark ? '#ddd' : '#333' }]}>
+                {dayView.totalSessions === 0
+                  ? `No feeds recorded yet today. Tap "Add event" to start tracking.`
+                  : `${BABY_NAME} has had ${dayView.totalSessions} feed${dayView.totalSessions === 1 ? '' : 's'} today, totalling ${dayView.totalFeedingMinutes} minutes of active feeding.`}
+              </Text>
+            </View>
+
+            {/* Active hiccups banner */}
+            {hiccups.filter((h) => !h.endedAt).map((h) => (
+              <View key={h.id} style={[styles.banner, styles.bannerHiccup]}>
+                <View style={styles.pulse} />
+                <View style={styles.bannerInfo}>
+                  <Text style={styles.bannerTitle}>Hiccups in progress</Text>
+                  <Text style={styles.bannerSub}>Started {fmtTime(h.startedAt)}</Text>
+                </View>
+              </View>
+            ))}
+
+            {/* Section: Feeds */}
+            {dayView.sessions.length > 0 && (
+              <Text style={[styles.section, { color: c.textSecondary }]}>Feeds</Text>
+            )}
+
+            {dayView.sessions.map((session) => (
+              <SessionCard
+                key={session.id}
+                session={session}
+                events={eventsBySession.get(session.id) ?? []}
+                isDark={isDark}
+                c={c}
+              />
+            ))}
+
+            {/* Completed hiccups */}
+            {hiccups.filter((h) => h.endedAt).length > 0 && (
+              <>
+                <Text style={[styles.section, { color: c.textSecondary }]}>Hiccups</Text>
+                {hiccups
+                  .filter((h) => h.endedAt)
+                  .map((h) => (
+                    <View key={h.id} style={[styles.evStandalone, { backgroundColor: c.card, borderColor: c.border }]}>
+                      <View style={[styles.evIcon, { backgroundColor: '#f3e5f5' }]}>
+                        <Text style={{ fontSize: 18 }}>🫢</Text>
+                      </View>
+                      <View style={styles.evInfo}>
+                        <Text style={[styles.evType, { color: c.text }]}>Hiccups</Text>
+                        <Text style={[styles.evTime, { color: c.textSecondary }]}>
+                          {fmtTime(h.startedAt)} – {fmtTime(h.endedAt!)}
+                        </Text>
+                      </View>
+                      <View style={[styles.evDur, { backgroundColor: '#f3e5f5' }]}>
+                        <Text style={{ fontSize: 10, color: '#7b1fa2' }}>
+                          {durationMin(h.startedAt, h.endedAt)} min
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+              </>
+            )}
+
+            {/* Empty state */}
+            {dayView.sessions.length === 0 && hiccups.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={[styles.emptyText, { color: c.textSecondary }]}>
+                  No activity recorded today yet
+                </Text>
               </View>
             )}
-          </View>
-        ))}
 
-        {/* Bottom spacing for add-event bar */}
-        <View style={{ height: 100 }} />
+            <View style={{ height: 100 }} />
+          </>
+        )}
       </ScrollView>
 
       {/* Add event button */}
@@ -151,6 +275,66 @@ export default function DayScreen() {
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Session card sub-component
+// ---------------------------------------------------------------------------
+
+function SessionCard({
+  session,
+  events,
+  isDark,
+  c,
+}: {
+  session: FeedingSessionResponse;
+  events: DayViewEvent[];
+  isDark: boolean;
+  c: typeof light;
+}) {
+  const dur = durationMin(session.startedAt, session.endedAt);
+  const timeRange = `${fmtTime(session.startedAt)}${session.endedAt ? ` – ${fmtTime(session.endedAt)}` : ' – ongoing'}`;
+
+  return (
+    <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+      <View style={styles.cardHead}>
+        <Text style={[styles.cardTime, { color: c.text }]}>{timeRange}</Text>
+        <View style={[styles.badge, { backgroundColor: isDark ? '#3A3A3C' : '#f0f0f0' }]}>
+          <Text style={[styles.badgeText, { color: c.textSecondary }]}>
+            {dur !== null ? `${dur} min` : 'active'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Segment tags */}
+      <View style={styles.tagRow}>
+        {session.segments.map((seg) => {
+          const { label, type } = segmentLabel(seg.side, seg.startedAt, seg.endedAt, seg.volumeMl);
+          return (
+            <View key={seg.id} style={[styles.tag, tagStyles[type]]}>
+              <Text style={[styles.tagText, tagTextStyles[type]]}>{label}</Text>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Event chips */}
+      {events.length > 0 && (
+        <View style={[styles.eventRow, { borderTopColor: c.border }]}>
+          {events.map((ev) => {
+            const tType = eventTagType(ev.type);
+            return (
+              <View key={ev.id} style={[styles.tag, tagStyles[tType]]}>
+                <Text style={[styles.tagText, tagTextStyles[tType]]}>
+                  {eventEmoji(ev.type)} {fmtTime(ev.timestamp)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -206,6 +390,19 @@ const styles = StyleSheet.create({
 
   content: { flex: 1, paddingHorizontal: 16 },
 
+  // Loading / error
+  center: { paddingVertical: 60, alignItems: 'center' },
+  errorBox: {
+    backgroundColor: '#fce4ec',
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 10,
+    alignItems: 'center',
+  },
+  errorBoxDark: { backgroundColor: '#3a1a1a' },
+  errorText: { color: '#c62828', fontSize: 13, marginBottom: 8, textAlign: 'center' },
+  retryText: { color: '#1967d2', fontSize: 13, fontWeight: '600' },
+
   // Summary pills
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 10 },
   pill: {
@@ -229,10 +426,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d0e3ff',
   },
-  aiCardDark: {
-    backgroundColor: '#1a2a3a',
-    borderColor: '#2a4a6a',
-  },
+  aiCardDark: { backgroundColor: '#1a2a3a', borderColor: '#2a4a6a' },
   aiBadge: {
     fontSize: 10,
     fontWeight: '700',
@@ -242,7 +436,21 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   aiText: { fontSize: 13, lineHeight: 19 },
-  aiReadMore: { fontSize: 12, fontWeight: '600', color: '#1967d2', marginTop: 8 },
+
+  // Active hiccup banner
+  banner: {
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bannerHiccup: { backgroundColor: '#f3e5f5' },
+  pulse: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#7b1fa2' },
+  bannerInfo: { flex: 1 },
+  bannerTitle: { fontWeight: '600', fontSize: 13, color: '#4a148c' },
+  bannerSub: { fontSize: 11, color: '#7b1fa2' },
 
   // Section header
   section: {
@@ -255,12 +463,7 @@ const styles = StyleSheet.create({
   },
 
   // Feed cards
-  card: {
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-  },
+  card: { borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   cardTime: { fontWeight: '600', fontSize: 14 },
   badge: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8 },
@@ -273,6 +476,26 @@ const styles = StyleSheet.create({
 
   // Event chips row
   eventRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 6, paddingTop: 7, borderTopWidth: 1 },
+
+  // Standalone events (hiccups)
+  evStandalone: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  evIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  evInfo: { flex: 1 },
+  evType: { fontWeight: '600', fontSize: 13 },
+  evTime: { fontSize: 11 },
+  evDur: { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 6 },
+
+  // Empty state
+  emptyState: { paddingVertical: 40, alignItems: 'center' },
+  emptyText: { fontSize: 14 },
 
   // Add event button
   addBar: {

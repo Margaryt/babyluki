@@ -50,43 +50,43 @@ function del(path: string): Promise<void> {
 export const feedingApi = {
   /** Start a new feeding session. */
   startSession: (babyId: string, notes?: string) =>
-    post<FeedingSessionResponse>(`/feeding/sessions/${babyId}`, { notes }),
+    post<FeedingSessionResponse>(`/feedings/sessions/${babyId}`, { notes }),
 
   /** End an active feeding session. */
   endSession: (sessionId: string, notes?: string) =>
-    patch<FeedingSessionResponse>(`/feeding/sessions/${sessionId}/end`, { notes }),
+    patch<FeedingSessionResponse>(`/feedings/sessions/${sessionId}/end`, { notes }),
 
   /** Get session detail with events. */
   getSession: (sessionId: string) =>
-    get<FeedingSessionDetailResponse>(`/feeding/sessions/${sessionId}`),
+    get<FeedingSessionDetailResponse>(`/feedings/sessions/${sessionId}`),
 
   /** Get day view — all sessions + summary for a date. */
   getDayView: (babyId: string, date?: string) => {
     const query = date ? `?date=${date}` : '';
-    return get<DayViewResponse>(`/feeding/sessions/day/${babyId}${query}`);
+    return get<DayViewResponse>(`/feedings/sessions/day/${babyId}${query}`);
   },
 
   /** Get statistics over N days. */
   getStats: (babyId: string, days?: number) => {
     const query = days ? `?days=${days}` : '';
-    return get<StatsResponse>(`/feeding/sessions/stats/${babyId}${query}`);
+    return get<StatsResponse>(`/feedings/sessions/stats/${babyId}${query}`);
   },
 
   /** Delete a session. */
   deleteSession: (sessionId: string) =>
-    del(`/feeding/sessions/${sessionId}`),
+    del(`/feedings/sessions/${sessionId}`),
 
   /** Add a segment to a session. */
   addSegment: (sessionId: string, side: SegmentSide, volumeMl?: number) =>
-    post<FeedingSegmentResponse>(`/feeding/segments/${sessionId}`, { side, volumeMl }),
+    post<FeedingSegmentResponse>(`/feedings/segments/${sessionId}`, { side, volumeMl }),
 
   /** Stop an active segment. */
   stopSegment: (segmentId: string, notes?: string) =>
-    patch<FeedingSegmentResponse>(`/feeding/segments/${segmentId}/stop`, { notes }),
+    patch<FeedingSegmentResponse>(`/feedings/segments/${segmentId}/stop`, { notes }),
 
   /** Delete a segment. */
   deleteSegment: (segmentId: string) =>
-    del(`/feeding/segments/${segmentId}`),
+    del(`/feedings/segments/${segmentId}`),
 };
 
 // ---------------------------------------------------------------------------
@@ -170,6 +170,13 @@ export interface FeedingSessionDetailResponse extends FeedingSessionResponse {
   events: Array<{ type: FeedingEventType; timestamp: string }>;
 }
 
+export interface DayViewEvent {
+  id: string;
+  sessionId: string | null;
+  type: FeedingEventType;
+  timestamp: string;
+}
+
 export interface DayViewResponse {
   date: string;
   totalSessions: number;
@@ -179,6 +186,7 @@ export interface DayViewResponse {
   totalSpills: number;
   totalCoughs: number;
   sessions: FeedingSessionResponse[];
+  events: DayViewEvent[];
 }
 
 export interface StatsResponse {
