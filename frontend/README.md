@@ -33,15 +33,19 @@ npm run web       # Start and open in browser
 
 ## API URL
 
-The app talks to `https://babyluki-production.up.railway.app` by default (set in `constants/Api.ts`). The `start:local` script reads from `.env.local` (git-ignored) to override this.
+The app talks to `https://babyluki-production.up.railway.app` by default (set in `constants/Api.ts`). The `start:local` script reads from `.env.localdev` (git-ignored) to override this.
 
-To set up local development, create a `.env.local` file with your machine's LAN IP:
+**Important:** We use `.env.localdev` instead of `.env.local` because Expo auto-loads `.env.local` files, which would override the production URL even when running `npm start`.
+
+To set up local development, create a `.env.localdev` file with your machine's LAN IP:
 
 ```
 EXPO_PUBLIC_API_URL=http://192.168.1.YOUR_IP:3000
 ```
 
 Find your IP with `ipconfig getifaddr en0` on Mac.
+
+**Switching between local and prod:** After switching API targets, force-close Expo Go on your phone and re-scan the QR code. Expo Go can cache the old JS bundle in memory.
 
 ## Build for App Store
 
