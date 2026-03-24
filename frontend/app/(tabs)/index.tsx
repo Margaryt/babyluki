@@ -10,7 +10,9 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import TopNav from '@/components/TopNav';
+import AddEventSheet from '@/components/AddEventSheet';
 import { feedingApi, hiccupApi } from '@/lib/api';
 import type {
   DayViewResponse,
@@ -79,10 +81,12 @@ export default function DayScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const c = isDark ? dark : light;
+  const router = useRouter();
 
   const [dayView, setDayView] = useState<DayViewResponse | null>(null);
   const [hiccups, setHiccups] = useState<HiccupResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sheetVisible, setSheetVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -270,10 +274,17 @@ export default function DayScreen() {
 
       {/* Add event button */}
       <View style={[styles.addBar, { backgroundColor: c.bg, borderTopColor: c.border }]}>
-        <TouchableOpacity style={styles.addBtn}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => setSheetVisible(true)}>
           <Text style={styles.addBtnText}>＋ Add event</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Add event bottom sheet */}
+      <AddEventSheet
+        visible={sheetVisible}
+        onClose={() => setSheetVisible(false)}
+        onFeed={() => router.push('/feed' as any)}
+      />
     </SafeAreaView>
   );
 }
