@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import TopNav from '@/components/TopNav';
 import AddEventSheet from '@/components/AddEventSheet';
 import { feedingApi, hiccupApi } from '@/lib/api';
@@ -120,9 +120,11 @@ export default function DayScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchData().finally(() => setLoading(false));
-  }, [fetchData]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData().finally(() => setLoading(false));
+    }, [fetchData])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
