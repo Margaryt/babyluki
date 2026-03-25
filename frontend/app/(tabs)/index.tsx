@@ -33,16 +33,25 @@ function fmtTime(iso: string): string {
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-/** Compute duration in minutes between two ISO timestamps. */
-function durationMin(start: string, end: string | null): number | null {
+/** Compute human-friendly duration between two ISO timestamps. */
+function durationStr(start: string, end: string | null): string | null {
   if (!end) return null;
-  return Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60_000);
+  const secs = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000);
+  if (secs < 60) return `${secs}s`;
+  return `${Math.round(secs / 60)} min`;
+}
+
+/** Short duration for tag labels. */
+function durationShort(start: string, end: string | null): string {
+  if (!end) return '';
+  const secs = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000);
+  if (secs < 60) return ` ${secs}s`;
+  return ` ${Math.round(secs / 60)}m`;
 }
 
 /** Map segment side to a display-friendly label + type. */
 function segmentLabel(side: SegmentSide, startedAt: string, endedAt: string | null, volumeMl: number | null) {
-  const dur = durationMin(startedAt, endedAt);
-  const durStr = dur !== null ? ` ${dur}m` : '';
+  const durStr = durationShort(startedAt, endedAt);
   switch (side) {
     case 'LEFT':
       return { label: `L${durStr}`, type: 'left' as const };
@@ -228,6 +237,7 @@ export default function DayScreen() {
                 events={eventsBySession.get(session.id) ?? []}
                 isDark={isDark}
                 c={c}
+                onPress={() => router.push(`/session/${session.id}` as any)}
               />
             ))}
 
@@ -250,7 +260,7 @@ export default function DayScreen() {
                       </View>
                       <View style={[styles.evDur, { backgroundColor: '#f3e5f5' }]}>
                         <Text style={{ fontSize: 10, color: '#7b1fa2' }}>
-                          {durationMin(h.startedAt, h.endedAt)} min
+                          {durationStr(h.startedAt, h.endedAt)}
                         </Text>
                       </View>
                     </View>
@@ -298,22 +308,28 @@ function SessionCard({
   events,
   isDark,
   c,
+  onPress,
 }: {
   session: FeedingSessionResponse;
   events: DayViewEvent[];
   isDark: boolean;
   c: typeof light;
+  onPress: () => void;
 }) {
-  const dur = durationMin(session.startedAt, session.endedAt);
+  const dur = durationStr(session.startedAt, session.endedAt);
   const timeRange = `${fmtTime(session.startedAt)}${session.endedAt ? ` – ${fmtTime(session.endedAt)}` : ' – ongoing'}`;
 
   return (
-    <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}
+    >
       <View style={styles.cardHead}>
         <Text style={[styles.cardTime, { color: c.text }]}>{timeRange}</Text>
         <View style={[styles.badge, { backgroundColor: isDark ? '#3A3A3C' : '#f0f0f0' }]}>
           <Text style={[styles.badgeText, { color: c.textSecondary }]}>
-            {dur !== null ? `${dur} min` : 'active'}
+            {dur ?? 'active'}
           </Text>
         </View>
       </View>
@@ -345,7 +361,7 @@ function SessionCard({
           })}
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 

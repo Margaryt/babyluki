@@ -41,9 +41,11 @@ function fmtTimer(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function durationMin(start: string, end: string | null): number | null {
+function durationStr(start: string, end: string | null): string | null {
   if (!end) return null;
-  return Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60_000);
+  const secs = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000);
+  if (secs < 60) return `${secs}s`;
+  return `${Math.round(secs / 60)} min`;
 }
 
 function sideName(side: SegmentSide): string {
@@ -308,7 +310,7 @@ export default function FeedScreen() {
                   <Text style={[styles.cardTime, { color: c.text }]}>{sideName(seg.side)}</Text>
                   <View style={[styles.badge, { backgroundColor: isDark ? '#3A3A3C' : '#f0f0f0' }]}>
                     <Text style={[styles.badgeText, { color: c.textSecondary }]}>
-                      {durationMin(seg.startedAt, seg.endedAt)} min
+                      {durationStr(seg.startedAt, seg.endedAt)}
                     </Text>
                   </View>
                 </View>
