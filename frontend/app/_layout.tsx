@@ -50,6 +50,7 @@ function RootLayoutNav() {
       <StatusBar style="auto" />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="session/[id]" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );

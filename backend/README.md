@@ -25,6 +25,12 @@ npm run dev
 
 The API runs on `http://localhost:3000`. To browse the database visually, run `npm run db:studio` (opens at `http://localhost:5555`).
 
+To drop and recreate the entire local database (useful when testing from a clean slate):
+
+```bash
+npx prisma migrate reset
+```
+
 ## Test baby
 
 The seed creates a baby with a fixed ID you can use for all API calls:
