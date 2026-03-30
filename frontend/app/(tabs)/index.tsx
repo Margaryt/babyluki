@@ -98,20 +98,46 @@ export default function DayScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  const today = new Date();
-  const dateStr = today.toLocaleDateString('en-US', {
+  /** Format YYYY-MM-DD for API calls. */
+  const toApiDate = (d: Date) => d.toISOString().slice(0, 10);
+
+  const isToday =
+    toApiDate(selectedDate) === toApiDate(new Date());
+
+  const dateStr = selectedDate.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
   });
 
-  const fetchData = useCallback(async () => {
+  const goBack = () => {
+    setLoading(true);
+    setSelectedDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() - 1);
+      return d;
+    });
+  };
+
+  const goForward = () => {
+    if (isToday) return;
+    setLoading(true);
+    setSelectedDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 1);
+      return d;
+    });
+  };
+
+  const fetchData = useCallback(async (date: Date) => {
     try {
       setError(null);
+      const dateParam = toApiDate(date);
       const [dv, hic] = await Promise.all([
-        feedingApi.getDayView(BABY_ID),
-        hiccupApi.getByDate(BABY_ID),
+        feedingApi.getDayView(BABY_ID, dateParam),
+        hiccupApi.getByDate(BABY_ID, dateParam),
       ]);
       setDayView(dv);
       setHiccups(hic);
@@ -122,15 +148,15 @@ export default function DayScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchData().finally(() => setLoading(false));
-    }, [fetchData])
+      fetchData(selectedDate).finally(() => setLoading(false));
+    }, [fetchData, selectedDate])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchData();
+    await fetchData(selectedDate);
     setRefreshing(false);
-  }, [fetchData]);
+  }, [fetchData, selectedDate]);
 
   // Build summary pills from real data
   const pills = dayView
@@ -157,9 +183,33 @@ export default function DayScreen() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: c.bg }]}>
-      {/* Header */}
+      {/* Header with date navigation */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: c.text }]}>{dateStr}</Text>
+        <View style={styles.dateNav}>
+          <TouchableOpacity onPress={goBack} style={styles.navArrow}>
+            <Text style={[styles.navArrowText, { color: c.text }]}>‹</Text>
+          </TouchableOpacity>
+          <View style={styles.dateCenter}>
+            <Text style={[styles.headerTitle, { color: c.text }]}>{dateStr}</Text>
+            {isToday && (
+              <Text style={[styles.todayBadge, { color: '#1967d2' }]}>Today</Text>
+            )}
+          </View>
+          <TouchableOpacity
+            onPress={goForward}
+            style={styles.navArrow}
+            disabled={isToday}
+          >
+            <Text
+              style={[
+                styles.navArrowText,
+                { color: isToday ? c.border : c.text },
+              ]}
+            >
+              ›
+            </Text>
+          </TouchableOpacity>
+        </View>
         <Text style={[styles.headerSub, { color: c.textSecondary }]}>{BABY_NAME}</Text>
       </View>
 
@@ -284,12 +334,14 @@ export default function DayScreen() {
         )}
       </ScrollView>
 
-      {/* Add event button */}
-      <View style={[styles.addBar, { backgroundColor: c.bg, borderTopColor: c.border }]}>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setSheetVisible(true)}>
-          <Text style={styles.addBtnText}>＋ Add event</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Add event button — only on today */}
+      {isToday && (
+        <View style={[styles.addBar, { backgroundColor: c.bg, borderTopColor: c.border }]}>
+          <TouchableOpacity style={styles.addBtn} onPress={() => setSheetVisible(true)}>
+            <Text style={styles.addBtnText}>＋ Add event</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Add event bottom sheet */}
       <AddEventSheet
@@ -414,8 +466,13 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
 
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
+  dateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  navArrow: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  navArrowText: { fontSize: 28, fontWeight: '300', lineHeight: 32 },
+  dateCenter: { flex: 1, alignItems: 'center' },
+  todayBadge: { fontSize: 11, fontWeight: '600', marginTop: 1 },
   headerTitle: { fontSize: 22, fontWeight: '700' },
-  headerSub: { fontSize: 13, marginTop: 2 },
+  headerSub: { fontSize: 13, marginTop: 2, textAlign: 'center' },
 
   content: { flex: 1, paddingHorizontal: 16 },
 
