@@ -85,8 +85,10 @@ curl -s http://localhost:3000/feedings/sessions/$SESSION_ID
   "totalBottleMl": 0,
   "burpCount": 1,
   "spillCount": 0,
+  "coughCount": 1,
   "events": [
-    { "type": "BURP", "timestamp": "2026-03-13T08:23:00.000Z" }
+    { "type": "BURP", "timestamp": "2026-03-13T08:23:00.000Z" },
+    { "type": "COUGH", "timestamp": "2026-03-13T08:24:00.000Z" }
   ]
 }
 ```
@@ -117,6 +119,7 @@ curl -s "http://localhost:3000/feedings/sessions/day/$BABY?date=2026-03-12"
   "totalBottleMl": 120,
   "totalBurps": 4,
   "totalSpills": 2,
+  "totalCoughs": 3,
   "sessions": [ "..." ]
 }
 ```
@@ -148,7 +151,8 @@ curl -s "http://localhost:3000/feedings/sessions/stats/$BABY?days=14"
     "avgGapMinutes": 142.5,
     "dailyBottleMl": 240,
     "burpsPerSession": 1.3,
-    "spillsPerDay": 1.8
+    "spillsPerDay": 1.8,
+    "coughsPerDay": 2.1
   }
 }
 ```
