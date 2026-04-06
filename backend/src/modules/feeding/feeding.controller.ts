@@ -38,7 +38,12 @@ export const getDaySessions = async (
 ) => {
   try {
     const { babyId } = req.params;
-    const date = req.query.date ? new Date(req.query.date) : new Date();
+    // Parse YYYY-MM-DD as local date (new Date('YYYY-MM-DD') is UTC, causing day-boundary bugs)
+    let date = new Date();
+    if (req.query.date) {
+      const [y, m, d] = req.query.date.split('-').map(Number);
+      date = new Date(y, m - 1, d);
+    }
     const dayView = await feedingService.getDayView(babyId, date);
     res.json(dayView);
   } catch (err) {

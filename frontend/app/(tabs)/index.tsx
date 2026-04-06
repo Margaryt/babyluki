@@ -11,13 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import TopNav from '@/components/TopNav';
-import AddEventSheet from '@/components/AddEventSheet';
-import { feedingApi, hiccupApi } from '@/lib/api';
+import { feedingApi } from '@/lib/api';
 import type {
   DayViewResponse,
   DayViewEvent,
-  HiccupResponse,
   FeedingSessionResponse,
   SegmentSide,
 } from '@/lib/api';
@@ -93,15 +90,18 @@ export default function DayScreen() {
   const router = useRouter();
 
   const [dayView, setDayView] = useState<DayViewResponse | null>(null);
-  const [hiccups, setHiccups] = useState<HiccupResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sheetVisible, setSheetVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  /** Format YYYY-MM-DD for API calls. */
-  const toApiDate = (d: Date) => d.toISOString().slice(0, 10);
+  /** Format YYYY-MM-DD in local timezone for API calls. */
+  const toApiDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
 
   const isToday =
     toApiDate(selectedDate) === toApiDate(new Date());
@@ -135,12 +135,8 @@ export default function DayScreen() {
     try {
       setError(null);
       const dateParam = toApiDate(date);
-      const [dv, hic] = await Promise.all([
-        feedingApi.getDayView(BABY_ID, dateParam),
-        hiccupApi.getByDate(BABY_ID, dateParam),
-      ]);
+      const dv = await feedingApi.getDayView(BABY_ID, dateParam);
       setDayView(dv);
-      setHiccups(hic);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load data');
     }
@@ -157,17 +153,6 @@ export default function DayScreen() {
     await fetchData(selectedDate);
     setRefreshing(false);
   }, [fetchData, selectedDate]);
-
-  // Build summary pills from real data
-  const pills = dayView
-    ? [
-        { emoji: '🍼', value: String(dayView.totalSessions), label: 'feeds' },
-        { emoji: '💨', value: String(dayView.totalBurps), label: 'burps' },
-        { emoji: '💧', value: String(dayView.totalSpills), label: 'spills' },
-        { emoji: '😤', value: String(dayView.totalCoughs), label: 'coughs' },
-        { emoji: '🫢', value: String(hiccups.length), label: hiccups.length === 1 ? 'hiccup' : 'hiccups' },
-      ]
-    : [];
 
   // Group events by sessionId for display on cards
   const eventsBySession = new Map<string, DayViewEvent[]>();
@@ -220,9 +205,6 @@ export default function DayScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Top navigation */}
-        <TopNav />
-
         {/* Loading state */}
         {loading && (
           <View style={styles.center}>
@@ -234,7 +216,7 @@ export default function DayScreen() {
         {error && !loading && (
           <View style={[styles.errorBox, isDark && styles.errorBoxDark]}>
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={() => { setLoading(true); fetchData().finally(() => setLoading(false)); }}>
+            <TouchableOpacity onPress={() => { setLoading(true); fetchData(selectedDate).finally(() => setLoading(false)); }}>
               <Text style={styles.retryText}>Tap to retry</Text>
             </TouchableOpacity>
           </View>
@@ -243,40 +225,6 @@ export default function DayScreen() {
         {/* Data loaded */}
         {!loading && !error && dayView && (
           <>
-            {/* Summary pills */}
-            <View style={styles.pillRow}>
-              {pills.map((p, i) => (
-                <View key={i} style={[styles.pill, { backgroundColor: c.card }]}>
-                  <Text style={styles.pillEmoji}>{p.emoji}</Text>
-                  <Text style={[styles.pillValue, { color: c.text }]}>{p.value}</Text>
-                  {p.label ? (
-                    <Text style={[styles.pillLabel, { color: c.textSecondary }]}>{p.label}</Text>
-                  ) : null}
-                </View>
-              ))}
-            </View>
-
-            {/* AI Summary card */}
-            <View style={[styles.aiCard, isDark && styles.aiCardDark]}>
-              <Text style={styles.aiBadge}>✨ AI Summary</Text>
-              <Text style={[styles.aiText, { color: isDark ? '#ddd' : '#333' }]}>
-                {dayView.totalSessions === 0
-                  ? `No feeds recorded yet today. Tap "Add event" to start tracking.`
-                  : `${BABY_NAME} has had ${dayView.totalSessions} feed${dayView.totalSessions === 1 ? '' : 's'} today, totalling ${dayView.totalFeedingMinutes} minutes of active feeding.`}
-              </Text>
-            </View>
-
-            {/* Active hiccups banner */}
-            {hiccups.filter((h) => !h.endedAt).map((h) => (
-              <View key={h.id} style={[styles.banner, styles.bannerHiccup]}>
-                <View style={styles.pulse} />
-                <View style={styles.bannerInfo}>
-                  <Text style={styles.bannerTitle}>Hiccups in progress</Text>
-                  <Text style={styles.bannerSub}>Started {fmtTime(h.startedAt)}</Text>
-                </View>
-              </View>
-            ))}
-
             {/* Section: Feeds */}
             {dayView.sessions.length > 0 && (
               <Text style={[styles.section, { color: c.textSecondary }]}>Feeds</Text>
@@ -293,35 +241,8 @@ export default function DayScreen() {
               />
             ))}
 
-            {/* Completed hiccups */}
-            {hiccups.filter((h) => h.endedAt).length > 0 && (
-              <>
-                <Text style={[styles.section, { color: c.textSecondary }]}>Hiccups</Text>
-                {hiccups
-                  .filter((h) => h.endedAt)
-                  .map((h) => (
-                    <View key={h.id} style={[styles.evStandalone, { backgroundColor: c.card, borderColor: c.border }]}>
-                      <View style={[styles.evIcon, { backgroundColor: '#f3e5f5' }]}>
-                        <Text style={{ fontSize: 18 }}>🫢</Text>
-                      </View>
-                      <View style={styles.evInfo}>
-                        <Text style={[styles.evType, { color: c.text }]}>Hiccups</Text>
-                        <Text style={[styles.evTime, { color: c.textSecondary }]}>
-                          {fmtTime(h.startedAt)} – {fmtTime(h.endedAt!)}
-                        </Text>
-                      </View>
-                      <View style={[styles.evDur, { backgroundColor: '#f3e5f5' }]}>
-                        <Text style={{ fontSize: 10, color: '#7b1fa2' }}>
-                          {durationStr(h.startedAt, h.endedAt)}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-              </>
-            )}
-
             {/* Empty state */}
-            {dayView.sessions.length === 0 && hiccups.length === 0 && (
+            {dayView.sessions.length === 0 && (
               <View style={styles.emptyState}>
                 <Text style={[styles.emptyText, { color: c.textSecondary }]}>
                   No activity recorded today yet
@@ -334,21 +255,14 @@ export default function DayScreen() {
         )}
       </ScrollView>
 
-      {/* Add event button — only on today */}
+      {/* Add feed button — only on today */}
       {isToday && (
         <View style={[styles.addBar, { backgroundColor: c.bg, borderTopColor: c.border }]}>
-          <TouchableOpacity style={styles.addBtn} onPress={() => setSheetVisible(true)}>
-            <Text style={styles.addBtnText}>＋ Add event</Text>
+          <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/feed' as any)}>
+            <Text style={styles.addBtnText}>＋ Add feed</Text>
           </TouchableOpacity>
         </View>
       )}
-
-      {/* Add event bottom sheet */}
-      <AddEventSheet
-        visible={sheetVisible}
-        onClose={() => setSheetVisible(false)}
-        onFeed={() => router.push('/feed' as any)}
-      />
     </SafeAreaView>
   );
 }
@@ -489,55 +403,6 @@ const styles = StyleSheet.create({
   errorText: { color: '#c62828', fontSize: 13, marginBottom: 8, textAlign: 'center' },
   retryText: { color: '#1967d2', fontSize: 13, fontWeight: '600' },
 
-  // Summary pills
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 10 },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  pillEmoji: { fontSize: 12 },
-  pillValue: { fontWeight: '700', fontSize: 12 },
-  pillLabel: { fontSize: 12 },
-
-  // AI Summary card
-  aiCard: {
-    backgroundColor: '#f0f7ff',
-    borderRadius: 14,
-    padding: 14,
-    marginVertical: 10,
-    borderWidth: 1,
-    borderColor: '#d0e3ff',
-  },
-  aiCardDark: { backgroundColor: '#1a2a3a', borderColor: '#2a4a6a' },
-  aiBadge: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#1967d2',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  aiText: { fontSize: 13, lineHeight: 19 },
-
-  // Active hiccup banner
-  banner: {
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  bannerHiccup: { backgroundColor: '#f3e5f5' },
-  pulse: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#7b1fa2' },
-  bannerInfo: { flex: 1 },
-  bannerTitle: { fontWeight: '600', fontSize: 13, color: '#4a148c' },
-  bannerSub: { fontSize: 11, color: '#7b1fa2' },
-
   // Section header
   section: {
     fontSize: 12,
@@ -562,22 +427,6 @@ const styles = StyleSheet.create({
 
   // Event chips row
   eventRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 6, paddingTop: 7, borderTopWidth: 1 },
-
-  // Standalone events (hiccups)
-  evStandalone: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-  },
-  evIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  evInfo: { flex: 1 },
-  evType: { fontWeight: '600', fontSize: 13 },
-  evTime: { fontSize: 11 },
-  evDur: { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 6 },
 
   // Empty state
   emptyState: { paddingVertical: 40, alignItems: 'center' },

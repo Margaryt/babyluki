@@ -20,7 +20,6 @@ model Baby {
   sleeps          Sleep[]
   nappies         Nappy[]
   feedingEvents   FeedingEvent[]
-  hiccups         Hiccup[]
 }
 
 /// A feeding session groups one or more segments (e.g. left breast → right breast → bottle top-up).
@@ -35,7 +34,6 @@ model FeedingSession {
 
   segments      FeedingSegment[]
   feedingEvents FeedingEvent[]
-  hiccups       Hiccup[]
 
   @@index([babyId, startedAt])
 }
@@ -112,19 +110,4 @@ enum FeedingEventType {
   BURP
   SPILL
   COUGH
-}
-
-/// A hiccup episode with a start and end time. Can be linked to a feeding session or standalone.
-model Hiccup {
-  id        String          @id @default(uuid())
-  babyId    String
-  baby      Baby            @relation(fields: [babyId], references: [id])
-  sessionId String?         /// Null for standalone hiccups (outside a feeding session).
-  session   FeedingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  startedAt DateTime
-  endedAt   DateTime?       /// Null while hiccups are still in progress.
-  createdAt DateTime        @default(now())
-
-  @@index([babyId, startedAt])
-  @@index([sessionId])
 }

@@ -187,7 +187,7 @@ export default function FeedScreen() {
       setEvents([]);
       setElapsed(0);
       setPhase('new');
-      router.replace('/');
+      router.navigate('/');
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Failed to end session');
     } finally {
@@ -218,7 +218,7 @@ export default function FeedScreen() {
     <SafeAreaView style={[styles.screen, { backgroundColor: c.bg }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace('/' as any)}>
+        <TouchableOpacity onPress={() => router.navigate('/' as any)}>
           <Text style={styles.backLink}>← Day overview</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: c.text }]}>
@@ -253,7 +253,7 @@ export default function FeedScreen() {
               ? 'Session timer starts on first segment'
               : activeSegment
                 ? `${sideName(activeSegment.side)} · segment ${(completedSegments.length + 1)}`
-                : 'No active segment — burp time?'}
+                : 'No active segment'}
           </Text>
 
           {/* Stop segment button (only during active segment) */}
@@ -296,58 +296,6 @@ export default function FeedScreen() {
               <Text style={styles.qeCoughText}>😤 Cough</Text>
             </TouchableOpacity>
           </View>
-        )}
-
-        {/* Completed segments */}
-        {completedSegments.length > 0 && (
-          <>
-            <Text style={[styles.section, { color: c.textSecondary }]}>
-              Completed segments
-            </Text>
-            {completedSegments.map(seg => (
-              <View key={seg.id} style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
-                <View style={styles.cardHead}>
-                  <Text style={[styles.cardTime, { color: c.text }]}>{sideName(seg.side)}</Text>
-                  <View style={[styles.badge, { backgroundColor: isDark ? '#3A3A3C' : '#f0f0f0' }]}>
-                    <Text style={[styles.badgeText, { color: c.textSecondary }]}>
-                      {durationStr(seg.startedAt, seg.endedAt)}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={{ fontSize: 11, color: c.textSecondary }}>
-                  {fmtTime(seg.startedAt)} – {fmtTime(seg.endedAt!)}
-                </Text>
-              </View>
-            ))}
-          </>
-        )}
-
-        {/* Events this session */}
-        {events.length > 0 && (
-          <>
-            <Text style={[styles.section, { color: c.textSecondary }]}>
-              Events this session
-            </Text>
-            {events.map(ev => (
-              <View key={ev.id} style={[styles.evStandalone, { backgroundColor: c.card, borderColor: c.border }]}>
-                <View style={[styles.evIcon, {
-                  backgroundColor: ev.type === 'BURP' ? '#fff3e0'
-                    : ev.type === 'SPILL' ? '#e3f2fd'
-                    : '#fce4ec',
-                }]}>
-                  <Text style={{ fontSize: 18 }}>{eventEmoji(ev.type)}</Text>
-                </View>
-                <View style={styles.evInfo}>
-                  <Text style={[styles.evType, { color: c.text }]}>
-                    {ev.type.charAt(0) + ev.type.slice(1).toLowerCase()}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: c.textSecondary }}>
-                    {fmtTime(ev.timestamp)}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </>
         )}
 
         {/* Segment buttons — shown when no active segment */}
@@ -415,15 +363,67 @@ export default function FeedScreen() {
         {/* End feed button (only when session exists) */}
         {phase === 'between' && (
           <TouchableOpacity
-            style={[styles.endBtn, { borderColor: isDark ? '#555' : '#ccc' }]}
+            style={styles.endBtn}
             onPress={endFeed}
             disabled={loading}
             activeOpacity={0.7}
           >
-            <Text style={[styles.endBtnText, { color: isDark ? '#999' : '#555' }]}>
+            <Text style={styles.endBtnText}>
               {loading ? 'Ending…' : 'End feed'}
             </Text>
           </TouchableOpacity>
+        )}
+
+        {/* Completed segments */}
+        {completedSegments.length > 0 && (
+          <>
+            <Text style={[styles.section, { color: c.textSecondary }]}>
+              Completed segments
+            </Text>
+            {completedSegments.map(seg => (
+              <View key={seg.id} style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+                <View style={styles.cardHead}>
+                  <Text style={[styles.cardTime, { color: c.text }]}>{sideName(seg.side)}</Text>
+                  <View style={[styles.badge, { backgroundColor: isDark ? '#3A3A3C' : '#f0f0f0' }]}>
+                    <Text style={[styles.badgeText, { color: c.textSecondary }]}>
+                      {durationStr(seg.startedAt, seg.endedAt)}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={{ fontSize: 11, color: c.textSecondary }}>
+                  {fmtTime(seg.startedAt)} – {fmtTime(seg.endedAt!)}
+                </Text>
+              </View>
+            ))}
+          </>
+        )}
+
+        {/* Events this session */}
+        {events.length > 0 && (
+          <>
+            <Text style={[styles.section, { color: c.textSecondary }]}>
+              Events this session
+            </Text>
+            {events.map(ev => (
+              <View key={ev.id} style={[styles.evStandalone, { backgroundColor: c.card, borderColor: c.border }]}>
+                <View style={[styles.evIcon, {
+                  backgroundColor: ev.type === 'BURP' ? '#fff3e0'
+                    : ev.type === 'SPILL' ? '#e3f2fd'
+                    : '#fce4ec',
+                }]}>
+                  <Text style={{ fontSize: 18 }}>{eventEmoji(ev.type)}</Text>
+                </View>
+                <View style={styles.evInfo}>
+                  <Text style={[styles.evType, { color: c.text }]}>
+                    {ev.type.charAt(0) + ev.type.slice(1).toLowerCase()}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: c.textSecondary }}>
+                    {fmtTime(ev.timestamp)}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </>
         )}
 
         <View style={{ height: 40 }} />
@@ -552,8 +552,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 14,
     borderRadius: 12,
-    borderWidth: 2,
+    backgroundColor: '#c5221f',
     alignItems: 'center',
   },
-  endBtnText: { fontSize: 14, fontWeight: '600' },
+  endBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
 });
