@@ -108,28 +108,6 @@ export const eventApi = {
   delete: (eventId: string) => del(`/events/${eventId}`),
 };
 
-// ---------------------------------------------------------------------------
-// Hiccups
-// ---------------------------------------------------------------------------
-
-export const hiccupApi = {
-  /** Start a hiccup episode. Auto-links to active session. */
-  start: (babyId: string, startedAt?: string) =>
-    post<HiccupResponse>(`/hiccups/${babyId}`, { startedAt }),
-
-  /** Stop an active hiccup. */
-  stop: (hiccupId: string, endedAt?: string) =>
-    patch<HiccupResponse>(`/hiccups/${hiccupId}/stop`, { endedAt }),
-
-  /** Get hiccups for a date. */
-  getByDate: (babyId: string, date?: string) => {
-    const query = date ? `?date=${date}` : '';
-    return get<HiccupResponse[]>(`/hiccups/${babyId}${query}`);
-  },
-
-  /** Delete a hiccup. */
-  delete: (hiccupId: string) => del(`/hiccups/${hiccupId}`),
-};
 
 // ---------------------------------------------------------------------------
 // Types (mirrored from backend)
@@ -214,11 +192,3 @@ export interface FeedingEventResponse {
   createdAt: string;
 }
 
-export interface HiccupResponse {
-  id: string;
-  babyId: string;
-  sessionId: string | null;
-  startedAt: string;
-  endedAt: string | null;
-  createdAt: string;
-}
