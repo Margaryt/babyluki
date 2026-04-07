@@ -90,7 +90,7 @@ export const endSession = async (
 ) => {
   try {
     const { sessionId } = req.params;
-    const session = await feedingService.endFeedingSession(sessionId, req.body.notes);
+    const session = await feedingService.endFeedingSession(sessionId, req.body.endedAt, req.body.notes);
     res.json(session);
   } catch (err) {
     console.error(err);
@@ -139,7 +139,7 @@ export const stopSegment = async (
 ) => {
   try {
     const { segmentId } = req.params;
-    const segment = await feedingService.stopFeedingSegment(segmentId, req.body.notes);
+    const segment = await feedingService.stopFeedingSegment(segmentId, req.body.endedAt, req.body.notes);
     res.json(segment);
   } catch (err) {
     console.error(err);

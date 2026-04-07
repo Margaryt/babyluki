@@ -101,17 +101,23 @@ export interface StatsResponse {
 
 /** POST /feeding/sessions/:babyId — create a new session. */
 export interface CreateSessionRequest {
+  /** ISO timestamp from the client device. */
+  startedAt: string;
   notes?: string;
 }
 
 /** PATCH /feeding/sessions/:sessionId/end — end a session. */
 export interface EndSessionRequest {
+  /** ISO timestamp from the client device. */
+  endedAt: string;
   notes?: string;
 }
 
 /** POST /feeding/segments/:sessionId — start a new segment. */
 export interface CreateSegmentRequest {
   side: SegmentSide;
+  /** ISO timestamp from the client device. */
+  startedAt: string;
   /** Only relevant for BOTTLE segments. */
   volumeMl?: number;
   notes?: string;
@@ -119,6 +125,8 @@ export interface CreateSegmentRequest {
 
 /** PATCH /feeding/segments/:segmentId/stop — stop a segment. */
 export interface StopSegmentRequest {
+  /** ISO timestamp from the client device. */
+  endedAt: string;
   notes?: string;
 }
 

@@ -49,12 +49,12 @@ function del(path: string): Promise<void> {
 
 export const feedingApi = {
   /** Start a new feeding session. */
-  startSession: (babyId: string, notes?: string) =>
-    post<FeedingSessionResponse>(`/feedings/sessions/${babyId}`, { notes }),
+  startSession: (babyId: string, startedAt: string, notes?: string) =>
+    post<FeedingSessionResponse>(`/feedings/sessions/${babyId}`, { startedAt, notes }),
 
   /** End an active feeding session. */
-  endSession: (sessionId: string, notes?: string) =>
-    patch<FeedingSessionResponse>(`/feedings/sessions/${sessionId}/end`, { notes }),
+  endSession: (sessionId: string, endedAt: string, notes?: string) =>
+    patch<FeedingSessionResponse>(`/feedings/sessions/${sessionId}/end`, { endedAt, notes }),
 
   /** Get session detail with events. */
   getSession: (sessionId: string) =>
@@ -77,12 +77,12 @@ export const feedingApi = {
     del(`/feedings/sessions/${sessionId}`),
 
   /** Add a segment to a session. */
-  addSegment: (sessionId: string, side: SegmentSide, volumeMl?: number) =>
-    post<FeedingSegmentResponse>(`/feedings/segments/${sessionId}`, { side, volumeMl }),
+  addSegment: (sessionId: string, side: SegmentSide, startedAt: string, volumeMl?: number) =>
+    post<FeedingSegmentResponse>(`/feedings/segments/${sessionId}`, { side, startedAt, volumeMl }),
 
   /** Stop an active segment. */
-  stopSegment: (segmentId: string, notes?: string) =>
-    patch<FeedingSegmentResponse>(`/feedings/segments/${segmentId}/stop`, { notes }),
+  stopSegment: (segmentId: string, endedAt: string, notes?: string) =>
+    patch<FeedingSegmentResponse>(`/feedings/segments/${segmentId}/stop`, { endedAt, notes }),
 
   /** Delete a segment. */
   deleteSegment: (segmentId: string) =>
