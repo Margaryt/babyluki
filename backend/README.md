@@ -45,12 +45,14 @@ All examples below use `$BABY` as shorthand.
 
 ## Session endpoints
 
+All timestamps are provided by the client device (ISO 8601 format) to avoid timezone issues between client and server.
+
 ### Start a session
 
 ```bash
 curl -s -X POST http://localhost:3000/feedings/sessions/$BABY \
   -H "Content-Type: application/json" \
-  -d '{ "notes": "Morning feed" }'
+  -d '{ "startedAt": "2026-03-13T08:00:00.000Z", "notes": "Morning feed" }'
 ```
 
 ```json
@@ -98,7 +100,7 @@ curl -s http://localhost:3000/feedings/sessions/$SESSION_ID
 ```bash
 curl -s -X PATCH http://localhost:3000/feedings/sessions/$SESSION_ID/end \
   -H "Content-Type: application/json" \
-  -d '{ "notes": "Fed well" }'
+  -d '{ "endedAt": "2026-03-13T08:25:00.000Z", "notes": "Fed well" }'
 ```
 
 ### Day view (all sessions + summary)
@@ -124,39 +126,6 @@ curl -s "http://localhost:3000/feedings/sessions/day/$BABY?date=2026-03-12"
 }
 ```
 
-### Statistics
-
-```bash
-# Last 7 days (default)
-curl -s http://localhost:3000/feedings/sessions/stats/$BABY
-
-# Last 14 days
-curl -s "http://localhost:3000/feedings/sessions/stats/$BABY?days=14"
-```
-
-```json
-{
-  "feedingWindows": [
-    {
-      "date": "2026-03-07",
-      "sessions": [
-        { "startedAt": "2026-03-07T06:30:00.000Z", "endedAt": "2026-03-07T07:00:00.000Z" },
-        { "startedAt": "2026-03-07T10:15:00.000Z", "endedAt": "2026-03-07T10:40:00.000Z" }
-      ]
-    }
-  ],
-  "averages": {
-    "feedsPerDay": 6.2,
-    "avgSessionMinutes": 18.4,
-    "avgGapMinutes": 142.5,
-    "dailyBottleMl": 240,
-    "burpsPerSession": 1.3,
-    "spillsPerDay": 1.8,
-    "coughsPerDay": 2.1
-  }
-}
-```
-
 ### Delete a session
 
 ```bash
@@ -173,7 +142,7 @@ curl -s -X DELETE http://localhost:3000/feedings/sessions/$SESSION_ID
 ```bash
 curl -s -X POST http://localhost:3000/feedings/segments/$SESSION_ID \
   -H "Content-Type: application/json" \
-  -d '{ "side": "LEFT" }'
+  -d '{ "side": "LEFT", "startedAt": "2026-03-13T08:00:05.000Z" }'
 ```
 
 ```json
@@ -194,7 +163,7 @@ For bottle feeds, include `volumeMl`:
 ```bash
 curl -s -X POST http://localhost:3000/feedings/segments/$SESSION_ID \
   -H "Content-Type: application/json" \
-  -d '{ "side": "BOTTLE", "volumeMl": 120 }'
+  -d '{ "side": "BOTTLE", "startedAt": "2026-03-13T08:12:00.000Z", "volumeMl": 120 }'
 ```
 
 ### Stop a segment
@@ -202,7 +171,7 @@ curl -s -X POST http://localhost:3000/feedings/segments/$SESSION_ID \
 ```bash
 curl -s -X PATCH http://localhost:3000/feedings/segments/$SEGMENT_ID/stop \
   -H "Content-Type: application/json" \
-  -d '{ "notes": "Good latch" }'
+  -d '{ "endedAt": "2026-03-13T08:12:00.000Z", "notes": "Good latch" }'
 ```
 
 ```json
@@ -276,68 +245,6 @@ curl -s "http://localhost:3000/events/$BABY?date=2026-03-12&type=SPILL"
 
 ```bash
 curl -s -X DELETE http://localhost:3000/events/$EVENT_ID
-# 204 No Content
-```
-
----
-
-## Hiccup endpoints
-
-If a feeding session is currently active (not ended), hiccups are automatically linked to it. Otherwise they are standalone.
-
-### Start a hiccup
-
-```bash
-# Auto-links to active session if one exists
-curl -s -X POST http://localhost:3000/hiccups/$BABY \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-
-```json
-{
-  "id": "j1k2l3...",
-  "babyId": "00000000-...",
-  "sessionId": null,
-  "startedAt": "2026-03-13T10:20:00.000Z",
-  "endedAt": null,
-  "createdAt": "2026-03-13T10:20:00.000Z"
-}
-```
-
-### Stop a hiccup
-
-```bash
-curl -s -X PATCH http://localhost:3000/hiccups/$HICCUP_ID/stop \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-
-```json
-{
-  "id": "j1k2l3...",
-  "babyId": "00000000-...",
-  "sessionId": null,
-  "startedAt": "2026-03-13T10:20:00.000Z",
-  "endedAt": "2026-03-13T10:28:00.000Z",
-  "createdAt": "2026-03-13T10:20:00.000Z"
-}
-```
-
-### Get hiccups by date
-
-```bash
-# Today (default)
-curl -s http://localhost:3000/hiccups/$BABY
-
-# Specific date
-curl -s "http://localhost:3000/hiccups/$BABY?date=2026-03-12"
-```
-
-### Delete a hiccup
-
-```bash
-curl -s -X DELETE http://localhost:3000/hiccups/$HICCUP_ID
 # 204 No Content
 ```
 

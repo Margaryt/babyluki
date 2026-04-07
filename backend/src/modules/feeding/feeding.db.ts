@@ -26,14 +26,14 @@ const includeSegmentsAndEvents = {
 // Session queries
 // ---------------------------------------------------------------------------
 
-/** Creates a new feeding session. Server-stamps startedAt. */
+/** Creates a new feeding session. */
 export const createSession = async (
   input: CreateSessionInput
 ): Promise<PrismaSession> => {
   return prisma.feedingSession.create({
     data: {
       babyId: input.babyId,
-      startedAt: new Date(),
+      startedAt: new Date(input.startedAt),
       notes: input.notes,
     },
   });
@@ -52,12 +52,13 @@ export const getSessionById = async (
 /** Stamps endedAt on a session. Returns the updated session with segments. */
 export const endSession = async (
   sessionId: string,
+  endedAt: string,
   notes?: string
 ): Promise<SessionWithSegments> => {
   return prisma.feedingSession.update({
     where: { id: sessionId },
     data: {
-      endedAt: new Date(),
+      endedAt: new Date(endedAt),
       ...(notes != null && { notes }),
     },
     include: includeSegments,
@@ -132,7 +133,7 @@ export const getSessionsByDateRange = async (
 // Segment queries
 // ---------------------------------------------------------------------------
 
-/** Creates a new segment. Auto-calculates the next order number. Server-stamps startedAt. */
+/** Creates a new segment. Auto-calculates the next order number. */
 export const createSegment = async (
   input: CreateSegmentInput
 ): Promise<PrismaSegment> => {
@@ -148,7 +149,7 @@ export const createSegment = async (
       sessionId: input.sessionId,
       order: nextOrder,
       side: input.side,
-      startedAt: new Date(),
+      startedAt: new Date(input.startedAt),
       volumeMl: input.volumeMl ?? null,
       notes: input.notes,
     },
@@ -163,12 +164,13 @@ export const deleteSegment = async (segmentId: string): Promise<void> => {
 /** Stamps endedAt on a segment. */
 export const stopSegment = async (
   segmentId: string,
+  endedAt: string,
   notes?: string
 ): Promise<PrismaSegment> => {
   return prisma.feedingSegment.update({
     where: { id: segmentId },
     data: {
-      endedAt: new Date(),
+      endedAt: new Date(endedAt),
       ...(notes != null && { notes }),
     },
   });

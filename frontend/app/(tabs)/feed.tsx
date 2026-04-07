@@ -113,7 +113,7 @@ export default function FeedScreen() {
   /** Create a new feeding session. */
   const createSession = useCallback(async (): Promise<FeedingSessionResponse | null> => {
     try {
-      const s = await feedingApi.startSession(BABY_ID);
+      const s = await feedingApi.startSession(BABY_ID, new Date().toISOString());
       setSession(s);
       return s;
     } catch (err: any) {
@@ -135,7 +135,7 @@ export default function FeedScreen() {
         s = await createSession();
         if (!s) { setLoading(false); return; }
       }
-      const seg = await feedingApi.addSegment(s.id, side);
+      const seg = await feedingApi.addSegment(s.id, side, new Date().toISOString());
       setActiveSegment(seg);
       setPhase('active');
       startTimer(new Date(seg.startedAt));
@@ -151,7 +151,7 @@ export default function FeedScreen() {
     if (!activeSegment) return;
     setLoading(true);
     try {
-      const stopped = await feedingApi.stopSegment(activeSegment.id);
+      const stopped = await feedingApi.stopSegment(activeSegment.id, new Date().toISOString());
       // Update session to include the stopped segment
       if (session) {
         const updatedSegments = [...session.segments.filter(s => s.id !== stopped.id), stopped];
@@ -176,10 +176,11 @@ export default function FeedScreen() {
     setLoading(true);
     try {
       // Stop active segment first if there is one
+      const now = new Date().toISOString();
       if (activeSegment) {
-        await feedingApi.stopSegment(activeSegment.id);
+        await feedingApi.stopSegment(activeSegment.id, now);
       }
-      await feedingApi.endSession(session.id);
+      await feedingApi.endSession(session.id, now);
       // Reset everything
       if (timerRef.current) clearInterval(timerRef.current);
       setSession(null);

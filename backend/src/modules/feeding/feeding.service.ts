@@ -44,9 +44,10 @@ export async function startSession(
 /** Ends an active feeding session. */
 export async function endFeedingSession(
   sessionId: string,
+  endedAt: string,
   notes?: string
 ): Promise<FeedingSessionResponse> {
-  const updated = await endSession(sessionId, notes);
+  const updated = await endSession(sessionId, endedAt, notes);
   return serializeSession(updated);
 }
 
@@ -61,9 +62,10 @@ export async function addSegment(
 /** Stops an active segment. */
 export async function stopFeedingSegment(
   segmentId: string,
+  endedAt: string,
   notes?: string
 ): Promise<FeedingSegmentResponse> {
-  const segment = await stopSegment(segmentId, notes);
+  const segment = await stopSegment(segmentId, endedAt, notes);
   return serializeSegment(segment);
 }
 
