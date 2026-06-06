@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { initDatabase } from '@/lib/db';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -19,6 +20,9 @@ export const unstable_settings = {
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// Initialise the local SQLite database (creates tables if needed).
+initDatabase();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({

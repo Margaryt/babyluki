@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { feedingApi } from '@/lib/api';
-import type { FeedingSessionDetailResponse, SegmentSide } from '@/lib/api';
+import * as db from '@/lib/db';
+import type { FeedingSessionDetailResponse, SegmentSide } from '@/lib/db';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -167,11 +167,15 @@ export default function SessionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDetail = useCallback(async () => {
+  const fetchDetail = useCallback(() => {
     if (!id) return;
     try {
       setError(null);
-      const d = await feedingApi.getSession(id);
+      const d = db.getSessionDetail(id);
+      if (!d) {
+        setError('Session not found');
+        return;
+      }
       setDetail(d);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load session');
@@ -179,7 +183,9 @@ export default function SessionDetailScreen() {
   }, [id]);
 
   useEffect(() => {
-    fetchDetail().finally(() => setLoading(false));
+    fetchDetail();
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchDetail]);
 
   const timeline = detail ? buildTimeline(detail) : [];
@@ -234,7 +240,7 @@ export default function SessionDetailScreen() {
             <TouchableOpacity
               onPress={() => {
                 setLoading(true);
-                fetchDetail().finally(() => setLoading(false));
+                fetchDetail(); setLoading(false);
               }}
             >
               <Text style={styles.retryText}>Tap to retry</Text>

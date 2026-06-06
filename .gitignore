@@ -1,13 +1,32 @@
-# Node
+# Dependencies
 node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Environment variables
 .env
-.DS_Store
-# Python
-__pycache__/
-*.pyc
+.env.local
+.env.localdev
+
+# Native build artifacts
+ios/
+android/
+
+# EAS
+.eas/
+
 # Logs
 logs/
 *.log
-# Misc
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Editor
 .idea/
 .vscode/

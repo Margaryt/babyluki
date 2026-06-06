@@ -4,17 +4,8 @@
 
 ```mermaid
 erDiagram
-    Baby {
-        uuid id PK
-        string name
-        datetime birthDate
-        datetime createdAt
-        datetime updatedAt
-    }
-
     FeedingSession {
         uuid id PK
-        uuid babyId FK
         datetime startedAt
         datetime endedAt "nullable"
         string notes "nullable"
@@ -33,66 +24,46 @@ erDiagram
         datetime createdAt
     }
 
-    Sleep {
+    FeedingEvent {
         uuid id PK
-        uuid babyId FK
-        datetime startedAt
-        datetime endedAt "nullable"
-        string notes "nullable"
+        uuid sessionId FK "nullable"
+        FeedingEventType type "BURP | SPILL | COUGH"
+        datetime timestamp
         datetime createdAt
     }
 
-    Nappy {
-        uuid id PK
-        uuid babyId FK
-        datetime changedAt
-        NappyType type "WET | DIRTY | MIXED"
-        string notes "nullable"
-        datetime createdAt
-    }
-
-    Baby ||--o{ FeedingSession : "has many"
     FeedingSession ||--o{ FeedingSegment : "has many (cascade delete)"
-    Baby ||--o{ Sleep : "has many"
-    Baby ||--o{ Nappy : "has many"
+    FeedingSession ||--o{ FeedingEvent : "has many (set null on delete)"
 ```
 
 ## Models
 
-### Baby
-
-The central entity. In Slice 1 there is no auth or User model — a baby exists on its own. When auth is added later, a `userId` foreign key will link babies to their parent/caregiver.
-
 ### FeedingSession
 
-A feeding session represents one full feeding routine (e.g. left breast, burp, nappy change, right breast, bottle top-up). It groups one or more **FeedingSegments** together. `startedAt` is server-stamped when the session is created. `endedAt` stays null until the parent explicitly ends the session.
+A feeding session represents one full feeding routine (e.g. left breast, burp, right breast, bottle top-up). It groups one or more **FeedingSegments** together. `startedAt` is set by the client device when the session is created. `endedAt` stays null until the parent explicitly ends the session.
 
 ### FeedingSegment
 
-A single breast or bottle feed within a session. Each segment has an `order` field (auto-incremented by the backend) that tracks its sequence within the session. The `side` enum can be `LEFT`, `RIGHT`, or `BOTTLE`. `volumeMl` is only relevant for `BOTTLE` segments. Segments cascade-delete when their parent session is deleted.
+A single breast or bottle feed within a session. Each segment has an `order` field that tracks its sequence within the session. The `side` enum can be `LEFT`, `RIGHT`, or `BOTTLE`. `volumeMl` is only relevant for `BOTTLE` segments. Segments cascade-delete when their parent session is deleted.
 
 The `[sessionId, order]` pair is unique — you can't have two segments with the same order in one session.
 
-### Sleep
+### FeedingEvent
 
-A sleep period. Same start/end pattern as feeding sessions — `endedAt` is null while the baby is still sleeping.
-
-### Nappy
-
-A nappy change event. Uses `changedAt` instead of start/end since it's a point-in-time event. The `type` enum can be `WET`, `DIRTY`, or `MIXED`.
+A point-in-time event during a feed (burp, spill, or cough). Automatically linked to the active session when logged. The session link is set to null if the session is deleted.
 
 ## Enums
 
 | Enum | Values | Used by |
 |------|--------|---------|
 | `SegmentSide` | `LEFT`, `RIGHT`, `BOTTLE` | FeedingSegment.side |
-| `NappyType` | `WET`, `DIRTY`, `MIXED` | Nappy.type |
+| `FeedingEventType` | `BURP`, `SPILL`, `COUGH` | FeedingEvent.type |
 
 ## Indexes
 
 | Table | Index | Purpose |
 |-------|-------|---------|
-| FeedingSession | `[babyId, startedAt]` | Fast lookup of sessions by baby and date |
+| FeedingSession | `startedAt` | Fast lookup of sessions by date |
 | FeedingSegment | `[sessionId, startedAt]` | Fast lookup of segments within a session |
-| Sleep | `[babyId, startedAt]` | Fast lookup of sleep records by baby and date |
-| Nappy | `[babyId, changedAt]` | Fast lookup of nappy changes by baby and date |
+| FeedingEvent | `timestamp` | Fast lookup of events by time |
+| FeedingEvent | `sessionId` | Fast lookup of events by session |

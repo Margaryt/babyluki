@@ -1,15 +1,6 @@
 erDiagram
-    Baby {
-        uuid id PK
-        string name
-        datetime birthDate
-        datetime createdAt
-        datetime updatedAt
-    }
-
     FeedingSession {
         uuid id PK
-        uuid babyId FK
         datetime startedAt
         datetime endedAt "nullable"
         string notes "nullable"
@@ -30,45 +21,11 @@ erDiagram
 
     FeedingEvent {
         uuid id PK
-        uuid babyId FK
         uuid sessionId FK "nullable"
         FeedingEventType type "BURP | SPILL | COUGH"
         datetime timestamp
         datetime createdAt
     }
 
-    Hiccup {
-        uuid id PK
-        uuid babyId FK
-        uuid sessionId FK "nullable"
-        datetime startedAt
-        datetime endedAt "nullable"
-        datetime createdAt
-    }
-
-    Sleep {
-        uuid id PK
-        uuid babyId FK
-        datetime startedAt
-        datetime endedAt "nullable"
-        string notes "nullable"
-        datetime createdAt
-    }
-
-    Nappy {
-        uuid id PK
-        uuid babyId FK
-        datetime changedAt
-        NappyType type "WET | DIRTY | MIXED"
-        string notes "nullable"
-        datetime createdAt
-    }
-
-    Baby ||--o{ FeedingSession : "has many"
     FeedingSession ||--o{ FeedingSegment : "has many (cascade delete)"
     FeedingSession ||--o{ FeedingEvent : "has many (set null on delete)"
-    Baby ||--o{ FeedingEvent : "has many"
-    FeedingSession ||--o{ Hiccup : "has many (set null on delete)"
-    Baby ||--o{ Hiccup : "has many"
-    Baby ||--o{ Sleep : "has many"
-    Baby ||--o{ Nappy : "has many"
