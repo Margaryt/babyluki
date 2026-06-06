@@ -17,14 +17,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { feedingApi, eventApi } from '@/lib/api';
+import * as db from '@/lib/db';
 import type {
   FeedingSessionResponse,
   FeedingSegmentResponse,
   FeedingEventResponse,
   SegmentSide,
-} from '@/lib/api';
-import { BABY_ID } from '@/constants/Baby';
+} from '@/lib/db';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -111,13 +110,13 @@ export default function FeedScreen() {
   // -----------------------------------------------------------------------
 
   /** Create a new feeding session. */
-  const createSession = useCallback(async (): Promise<FeedingSessionResponse | null> => {
+  const createSession = useCallback((): FeedingSessionResponse | null => {
     try {
-      const s = await feedingApi.startSession(BABY_ID, new Date().toISOString());
+      const s = db.startSession(new Date().toISOString());
       setSession(s);
       return s;
     } catch (err: any) {
-      if (err.message?.includes('409')) {
+      if (err.message?.includes('already active')) {
         Alert.alert('Session active', 'A feeding session is already in progress. End it before starting a new one.');
       } else {
         Alert.alert('Error', err.message ?? 'Failed to start session');
@@ -127,15 +126,15 @@ export default function FeedScreen() {
   }, []);
 
   /** Start a segment (Left / Right / Bottle). Creates session first if needed. */
-  const startSegment = useCallback(async (side: SegmentSide) => {
+  const startSegment = useCallback((side: SegmentSide) => {
     setLoading(true);
     try {
       let s = session;
       if (!s) {
-        s = await createSession();
+        s = createSession();
         if (!s) { setLoading(false); return; }
       }
-      const seg = await feedingApi.addSegment(s.id, side, new Date().toISOString());
+      const seg = db.addSegment(s.id, side, new Date().toISOString());
       setActiveSegment(seg);
       setPhase('active');
       startTimer(new Date(seg.startedAt));
@@ -147,11 +146,11 @@ export default function FeedScreen() {
   }, [session, createSession, startTimer]);
 
   /** Stop the current active segment. */
-  const stopSegment = useCallback(async () => {
+  const stopSegment = useCallback(() => {
     if (!activeSegment) return;
     setLoading(true);
     try {
-      const stopped = await feedingApi.stopSegment(activeSegment.id, new Date().toISOString());
+      const stopped = db.stopSegment(activeSegment.id, new Date().toISOString());
       // Update session to include the stopped segment
       if (session) {
         const updatedSegments = [...session.segments.filter(s => s.id !== stopped.id), stopped];
@@ -171,16 +170,16 @@ export default function FeedScreen() {
   }, [activeSegment, session, startTimer]);
 
   /** End the entire feed session. */
-  const endFeed = useCallback(async () => {
+  const endFeed = useCallback(() => {
     if (!session) return;
     setLoading(true);
     try {
       // Stop active segment first if there is one
       const now = new Date().toISOString();
       if (activeSegment) {
-        await feedingApi.stopSegment(activeSegment.id, now);
+        db.stopSegment(activeSegment.id, now);
       }
-      await feedingApi.endSession(session.id, now);
+      db.endSession(session.id, now);
       // Reset everything
       if (timerRef.current) clearInterval(timerRef.current);
       setSession(null);
@@ -197,9 +196,9 @@ export default function FeedScreen() {
   }, [session, activeSegment, router]);
 
   /** Log a quick event (burp, spill, cough). */
-  const logEvent = useCallback(async (type: 'BURP' | 'SPILL' | 'COUGH') => {
+  const logFeedingEvent = useCallback((type: 'BURP' | 'SPILL' | 'COUGH') => {
     try {
-      const ev = await eventApi.log(BABY_ID, type);
+      const ev = db.logEvent(type);
       setEvents(prev => [...prev, ev]);
     } catch (err: any) {
       Alert.alert('Error', err.message ?? `Failed to log ${type.toLowerCase()}`);
@@ -277,21 +276,21 @@ export default function FeedScreen() {
           <View style={styles.quickEvents}>
             <TouchableOpacity
               style={[styles.qeBtn, styles.qeBurp]}
-              onPress={() => logEvent('BURP')}
+              onPress={() => logFeedingEvent('BURP')}
               activeOpacity={0.7}
             >
               <Text style={styles.qeBurpText}>💨 Burp</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.qeBtn, styles.qeSpill]}
-              onPress={() => logEvent('SPILL')}
+              onPress={() => logFeedingEvent('SPILL')}
               activeOpacity={0.7}
             >
               <Text style={styles.qeSpillText}>💧 Spill</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.qeBtn, styles.qeCough]}
-              onPress={() => logEvent('COUGH')}
+              onPress={() => logFeedingEvent('COUGH')}
               activeOpacity={0.7}
             >
               <Text style={styles.qeCoughText}>😤 Cough</Text>

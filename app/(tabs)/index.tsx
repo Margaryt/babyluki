@@ -11,14 +11,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { feedingApi } from '@/lib/api';
+import * as db from '@/lib/db';
 import type {
   DayViewResponse,
   DayViewEvent,
   FeedingSessionResponse,
   SegmentSide,
-} from '@/lib/api';
-import { BABY_ID, BABY_NAME } from '@/constants/Baby';
+} from '@/lib/db';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -131,11 +130,11 @@ export default function DayScreen() {
     });
   };
 
-  const fetchData = useCallback(async (date: Date) => {
+  const fetchData = useCallback((date: Date) => {
     try {
       setError(null);
       const dateParam = toApiDate(date);
-      const dv = await feedingApi.getDayView(BABY_ID, dateParam);
+      const dv = db.getDayView(dateParam);
       setDayView(dv);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load data');
@@ -144,13 +143,14 @@ export default function DayScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchData(selectedDate).finally(() => setLoading(false));
+      fetchData(selectedDate);
+      setLoading(false);
     }, [fetchData, selectedDate])
   );
 
-  const onRefresh = useCallback(async () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    await fetchData(selectedDate);
+    fetchData(selectedDate);
     setRefreshing(false);
   }, [fetchData, selectedDate]);
 
@@ -195,7 +195,7 @@ export default function DayScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-        <Text style={[styles.headerSub, { color: c.textSecondary }]}>{BABY_NAME}</Text>
+        <Text style={[styles.headerSub, { color: c.textSecondary }]}>Luki</Text>
       </View>
 
       <ScrollView
@@ -216,7 +216,7 @@ export default function DayScreen() {
         {error && !loading && (
           <View style={[styles.errorBox, isDark && styles.errorBoxDark]}>
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={() => { setLoading(true); fetchData(selectedDate).finally(() => setLoading(false)); }}>
+            <TouchableOpacity onPress={() => { setLoading(true); fetchData(selectedDate); setLoading(false); }}>
               <Text style={styles.retryText}>Tap to retry</Text>
             </TouchableOpacity>
           </View>

@@ -20,12 +20,42 @@ Baby Luki is a baby feeding tracker. The current MVP supports:
 
 ## Architecture
 
-This is a monorepo with the following structure:
+An Expo (React Native) app. All data is stored on-device using SQLite via `expo-sqlite` — nothing leaves the phone. The data model centres on feeding sessions: a FeedingSession groups one or more FeedingSegments (e.g. left breast → right breast → bottle top-up). FeedingEvents (burps, spills, coughs) are point-in-time events linked to a session.
 
-- `backend/` — Node.js + Express + TypeScript API ([setup & API docs](backend/README.md))
-- `frontend/` — Expo (React Native) mobile app ([setup & dev docs](frontend/README.md))
-- `docs/` — Data model diagrams and UI mockups
+See `docs/` for data model diagrams and UI mockups.
 
-The backend uses Prisma as the ORM with PostgreSQL, deployed on Railway. The data model centres on a Baby entity. Feedings use a session/segment pattern — a FeedingSession groups one or more FeedingSegments (e.g. left breast → right breast → bottle top-up). FeedingEvents (burps, spills, and coughs) are point-in-time events linked to a session. All timestamps are provided by the client device to avoid timezone issues between the phone and the server.
+## Tech stack
 
-The frontend is an Expo SDK 54 app using expo-router for file-based routing, tested via Expo Go on iPhone.
+- Expo SDK 54 / React Native 0.81
+- Expo Router (file-based routing)
+- expo-sqlite (local on-device storage)
+- TypeScript
+
+## Running the app
+
+### Prerequisites
+
+- Node.js 18+
+- [Expo Go](https://apps.apple.com/app/expo-go/id982107779) on your iPhone
+
+### Start
+
+```bash
+npm install
+npm start
+```
+
+Scan the QR code with your iPhone camera to open in Expo Go. Your phone and computer must be on the same Wi-Fi.
+
+```bash
+npm run ios       # Open in iOS simulator
+npm run android   # Open in Android emulator
+npm run web       # Open in browser
+```
+
+## Build for App Store
+
+```bash
+npx eas build --profile production --platform ios
+npx eas submit --platform ios
+```
