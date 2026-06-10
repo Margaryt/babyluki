@@ -285,6 +285,14 @@ export function getSession(sessionId: string): FeedingSessionResponse | null {
   return sessionWithSegments(db, row);
 }
 
+/** Permanently delete a session and all its segments and events. */
+export function deleteSession(sessionId: string): void {
+  const db = getDb();
+  db.runSync('DELETE FROM feeding_event WHERE session_id = ?', [sessionId]);
+  db.runSync('DELETE FROM feeding_segment WHERE session_id = ?', [sessionId]);
+  db.runSync('DELETE FROM feeding_session WHERE id = ?', [sessionId]);
+}
+
 // ---------------------------------------------------------------------------
 // Segment operations
 // ---------------------------------------------------------------------------
