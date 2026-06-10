@@ -10,6 +10,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -96,6 +97,28 @@ export default function DayScreen() {
       setError(e.message ?? 'Failed to load');
     }
   }, []);
+
+  const handleDelete = useCallback((sessionId: string) => {
+    Alert.alert(
+      'Delete feed?',
+      'This will permanently remove this feed and cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            try {
+              db.deleteSession(sessionId);
+              loadData(selected);
+            } catch (e: any) {
+              Alert.alert('Error', e.message ?? 'Failed to delete');
+            }
+          },
+        },
+      ]
+    );
+  }, [loadData, selected]);
 
   useFocusEffect(useCallback(() => { loadData(selected); }, [loadData, selected]));
 
@@ -227,6 +250,13 @@ export default function DayScreen() {
                         <View style={s.actRow}>
                           <Text style={s.actName}>{sessionName(session)}</Text>
                           <Text style={s.actTime}>{fmtTime(session.startedAt)}</Text>
+                          <TouchableOpacity
+                            style={s.deleteBtn}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            onPress={e => { e.stopPropagation(); handleDelete(session.id); }}
+                          >
+                            <Text style={s.deleteBtnTxt}>✕</Text>
+                          </TouchableOpacity>
                         </View>
                         {dur
                           ? <Text style={s.actDur}>{dur} duration</Text>
@@ -416,9 +446,20 @@ const s = StyleSheet.create({
     minHeight: 24,
   },
   actBody: { flex: 1, paddingBottom: 20, minHeight: 40 },
-  actRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  actRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   actName: { fontSize: 16, fontWeight: '600', color: C.onSurface, flex: 1, marginRight: 8 },
   actTime: { fontSize: 13, fontWeight: '500', color: C.outline },
+  deleteBtn: {
+    marginLeft: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: C.error + '55',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteBtnTxt: { fontSize: 11, fontWeight: '500', color: C.error + 'AA', lineHeight: 13, letterSpacing: 0.5 },
   actDur: { fontSize: 14, color: C.onSurfaceVariant, marginTop: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   chip: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999 },
