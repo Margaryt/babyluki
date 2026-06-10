@@ -1,3 +1,7 @@
+/**
+ * Day Overview — BabyLuki
+ * Horizontal calendar strip, summary card, activity feed, FAB.
+ */
 import { useState, useCallback } from 'react';
 import {
   View,
@@ -5,31 +9,25 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as db from '@/lib/db';
-import type {
-  DayViewResponse,
-  DayViewEvent,
-  FeedingSessionResponse,
-  SegmentSide,
-} from '@/lib/db';
+import type { DayViewResponse, DayViewEvent, FeedingSessionResponse } from '@/lib/db';
+import { C } from '@/constants/Colors';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Format an ISO timestamp as HH:MM. */
-function fmtTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+function toApiDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Compute human-friendly duration between two ISO timestamps. */
+function fmtTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Duration from session start to end (total wall-clock time). */
 function durationStr(start: string, end: string | null): string | null {
   if (!end) return null;
   const secs = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000);
@@ -37,229 +35,250 @@ function durationStr(start: string, end: string | null): string | null {
   return `${Math.round(secs / 60)} min`;
 }
 
-/** Short duration for tag labels. */
-function durationShort(start: string, end: string | null): string {
-  if (!end) return '';
-  const secs = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000);
-  if (secs < 60) return ` ${secs}s`;
-  return ` ${Math.round(secs / 60)}m`;
+const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/** Generate `count` days centred −3 days before `center`. */
+function calendarDays(center: Date, count = 14): Date[] {
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(center);
+    d.setDate(d.getDate() - 3 + i);
+    return d;
+  });
 }
 
-/** Map segment side to a display-friendly label + type. */
-function segmentLabel(side: SegmentSide, startedAt: string, endedAt: string | null, volumeMl: number | null) {
-  const durStr = durationShort(startedAt, endedAt);
-  switch (side) {
-    case 'LEFT':
-      return { label: `L${durStr}`, type: 'left' as const };
-    case 'RIGHT':
-      return { label: `R${durStr}`, type: 'right' as const };
-    case 'BOTTLE':
-      return { label: `🍼${volumeMl ? ` ${volumeMl}ml` : ''}${durStr}`, type: 'bottle' as const };
+function sessionName(session: FeedingSessionResponse): string {
+  const sides = session.segments.map(s => s.side);
+  if (!sides.length) return 'Feed';
+  const uniq = [...new Set(sides)];
+  if (uniq.length === 1) {
+    if (uniq[0] === 'LEFT') return 'Left Breast';
+    if (uniq[0] === 'RIGHT') return 'Right Breast';
+    if (uniq[0] === 'BOTTLE') return 'Bottle';
   }
+  if (sides.some(s => s === 'LEFT' || s === 'RIGHT') && sides.includes('BOTTLE')) return 'Mixed';
+  return 'Both Breasts';
 }
 
-/** Map event type to emoji. */
-function eventEmoji(type: string): string {
-  switch (type) {
-    case 'BURP': return '💨';
-    case 'SPILL': return '💧';
-    case 'COUGH': return '😤';
-    default: return '?';
-  }
+function sessionIcon(session: FeedingSessionResponse): string {
+  return session.segments.every(s => s.side === 'BOTTLE') ? '🍼' : '🤱';
 }
 
-/** Map event type to tag type key. */
-function eventTagType(type: string): string {
-  switch (type) {
-    case 'BURP': return 'burp';
-    case 'SPILL': return 'spill';
-    case 'COUGH': return 'cough';
-    default: return 'burp';
-  }
+function evCounts(events: DayViewEvent[], sessionId: string) {
+  const ev = events.filter(e => e.sessionId === sessionId);
+  return {
+    burps: ev.filter(e => e.type === 'BURP').length,
+    spills: ev.filter(e => e.type === 'SPILL').length,
+    coughs: ev.filter(e => e.type === 'COUGH').length,
+  };
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function DayScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const c = isDark ? dark : light;
   const router = useRouter();
-
+  const [selected, setSelected] = useState(new Date());
   const [dayView, setDayView] = useState<DayViewResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [refreshing, setRefreshing] = useState(false);
 
-  /** Format YYYY-MM-DD in local timezone for API calls. */
-  const toApiDate = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
+  const todayStr = toApiDate(new Date());
+  const isToday = toApiDate(selected) === todayStr;
 
-  const isToday =
-    toApiDate(selectedDate) === toApiDate(new Date());
-
-  const dateStr = selectedDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-  });
-
-  const goBack = () => {
-    setLoading(true);
-    setSelectedDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() - 1);
-      return d;
-    });
-  };
-
-  const goForward = () => {
-    if (isToday) return;
-    setLoading(true);
-    setSelectedDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + 1);
-      return d;
-    });
-  };
-
-  const fetchData = useCallback((date: Date) => {
+  const loadData = useCallback((date: Date) => {
     try {
       setError(null);
-      const dateParam = toApiDate(date);
-      const dv = db.getDayView(dateParam);
-      setDayView(dv);
+      setDayView(db.getDayView(toApiDate(date)));
     } catch (e: any) {
-      setError(e.message ?? 'Failed to load data');
+      setError(e.message ?? 'Failed to load');
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData(selectedDate);
-      setLoading(false);
-    }, [fetchData, selectedDate])
-  );
+  useFocusEffect(useCallback(() => { loadData(selected); }, [loadData, selected]));
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchData(selectedDate);
-    setRefreshing(false);
-  }, [fetchData, selectedDate]);
-
-  // Group events by sessionId for display on cards
-  const eventsBySession = new Map<string, DayViewEvent[]>();
-  if (dayView) {
-    for (const ev of dayView.events) {
-      if (ev.sessionId) {
-        const arr = eventsBySession.get(ev.sessionId) ?? [];
-        arr.push(ev);
-        eventsBySession.set(ev.sessionId, arr);
-      }
-    }
-  }
+  const days = calendarDays(selected);
+  const monthLabel = `${MONTHS[selected.getMonth()]} ${selected.getFullYear()}`;
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: c.bg }]}>
-      {/* Header with date navigation */}
-      <View style={styles.header}>
-        <View style={styles.dateNav}>
-          <TouchableOpacity onPress={goBack} style={styles.navArrow}>
-            <Text style={[styles.navArrowText, { color: c.text }]}>‹</Text>
-          </TouchableOpacity>
-          <View style={styles.dateCenter}>
-            <Text style={[styles.headerTitle, { color: c.text }]}>{dateStr}</Text>
-            {isToday && (
-              <Text style={[styles.todayBadge, { color: '#1967d2' }]}>Today</Text>
-            )}
-          </View>
-          <TouchableOpacity
-            onPress={goForward}
-            style={styles.navArrow}
-            disabled={isToday}
-          >
-            <Text
-              style={[
-                styles.navArrowText,
-                { color: isToday ? c.border : c.text },
-              ]}
-            >
-              ›
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={[styles.headerSub, { color: c.textSecondary }]}>Luki</Text>
+    <SafeAreaView style={s.screen} edges={['top']}>
+      {/* App bar */}
+      <View style={s.appBar}>
+        <Text style={s.brand}>BabyLuki</Text>
       </View>
 
       <ScrollView
-        style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); loadData(selected); setRefreshing(false); }}
+            tintColor={C.primary}
+          />
         }
       >
-        {/* Loading state */}
-        {loading && (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={c.textSecondary} />
+        {/* ── Calendar strip ── */}
+        <View style={s.calSection}>
+          <View style={s.calHeader}>
+            <Text style={s.monthLabel}>{monthLabel}</Text>
+            <View style={{ flexDirection: 'row', gap: 4 }}>
+              <TouchableOpacity
+                style={s.navBtn}
+                onPress={() => setSelected(d => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; })}
+              >
+                <Text style={s.navBtnText}>‹</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.navBtn}
+                disabled={isToday}
+                onPress={() => setSelected(d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; })}
+              >
+                <Text style={[s.navBtnText, isToday && { color: C.outlineVariant }]}>›</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
 
-        {/* Error state */}
-        {error && !loading && (
-          <View style={[styles.errorBox, isDark && styles.errorBoxDark]}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={() => { setLoading(true); fetchData(selectedDate); setLoading(false); }}>
-              <Text style={styles.retryText}>Tap to retry</Text>
-            </TouchableOpacity>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.dayStrip}
+          >
+            {days.map((day, i) => {
+              const sel = toApiDate(day) === toApiDate(selected);
+              const tod = toApiDate(day) === todayStr;
+              return (
+                <TouchableOpacity
+                  key={i}
+                  activeOpacity={0.7}
+                  style={[s.dayTile, sel && s.dayTileSel]}
+                  onPress={() => setSelected(new Date(day))}
+                >
+                  <Text style={[s.dayAbbr, sel && s.dayAbbrSel]}>
+                    {DAY_ABBR[day.getDay()]}
+                  </Text>
+                  <Text style={[s.dayNum, sel && s.dayNumSel]}>
+                    {day.getDate()}
+                  </Text>
+                  {tod && !sel && <View style={s.todayDot} />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {error ? (
+          <View style={s.errorBox}>
+            <Text style={s.errorText}>{error}</Text>
           </View>
-        )}
-
-        {/* Data loaded */}
-        {!loading && !error && dayView && (
+        ) : dayView ? (
           <>
-            {/* Section: Feeds */}
-            {dayView.sessions.length > 0 && (
-              <Text style={[styles.section, { color: c.textSecondary }]}>Feeds</Text>
-            )}
-
-            {dayView.sessions.map((session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                events={eventsBySession.get(session.id) ?? []}
-                isDark={isDark}
-                c={c}
-                onPress={() => router.push(`/session/${session.id}` as any)}
-              />
-            ))}
-
-            {/* Empty state */}
-            {dayView.sessions.length === 0 && (
-              <View style={styles.emptyState}>
-                <Text style={[styles.emptyText, { color: c.textSecondary }]}>
-                  No activity recorded today yet
-                </Text>
+            {/* ── Summary card ── */}
+            <View style={s.summaryWrap}>
+              <View style={s.summaryCard}>
+                <Text style={s.summaryLabel}>FEEDS</Text>
+                <Text style={s.summaryCount}>{dayView.totalSessions}</Text>
               </View>
-            )}
+            </View>
 
-            <View style={{ height: 100 }} />
+            {/* ── Activity list ── */}
+            <View style={s.actSection}>
+              <Text style={s.actHeader}>
+                {isToday ? "Today's Activity" : 'Activity'}
+              </Text>
+
+              {dayView.sessions.length === 0 ? (
+                /* Empty state */
+                <View style={s.empty}>
+                  <View style={s.emptyIconWrap}>
+                    <Text style={s.emptyIcon}>📋</Text>
+                  </View>
+                  <Text style={s.emptyTitle}>No activities logged yet</Text>
+                  <Text style={s.emptyBody}>
+                    {isToday
+                      ? 'Tap the + button below to log your first feed.'
+                      : 'No feeds recorded for this day.'}
+                  </Text>
+                </View>
+              ) : (
+                dayView.sessions.map((session, idx) => {
+                  const isLast = idx === dayView.sessions.length - 1;
+                  const dur = durationStr(session.startedAt, session.endedAt);
+                  const { burps, spills, coughs } = evCounts(dayView.events, session.id);
+
+                  return (
+                    <TouchableOpacity
+                      key={session.id}
+                      activeOpacity={0.7}
+                      style={s.actItem}
+                      onPress={() => router.push(`/session/${session.id}` as any)}
+                    >
+                      {/* Icon + timeline line */}
+                      <View style={s.actLeft}>
+                        <View style={s.actIconWrap}>
+                          <Text style={s.actIconText}>{sessionIcon(session)}</Text>
+                        </View>
+                        {!isLast && <View style={s.timelineLine} />}
+                      </View>
+
+                      {/* Content */}
+                      <View style={s.actBody}>
+                        <View style={s.actRow}>
+                          <Text style={s.actName}>{sessionName(session)}</Text>
+                          <Text style={s.actTime}>{fmtTime(session.startedAt)}</Text>
+                        </View>
+                        {dur
+                          ? <Text style={s.actDur}>{dur} duration</Text>
+                          : !session.endedAt && <Text style={s.actDur}>Ongoing</Text>
+                        }
+                        {(burps > 0 || spills > 0 || coughs > 0) && (
+                          <View style={s.chips}>
+                            {burps > 0 && (
+                              <View style={[s.chip, s.chipBurp]}>
+                                <Text style={[s.chipTxt, s.chipBurpTxt]}>
+                                  💨 {burps} {burps === 1 ? 'Burp' : 'Burps'}
+                                </Text>
+                              </View>
+                            )}
+                            {spills > 0 && (
+                              <View style={[s.chip, s.chipSpill]}>
+                                <Text style={[s.chipTxt, s.chipSpillTxt]}>
+                                  💧 {spills} {spills === 1 ? 'Spill' : 'Spills'}
+                                </Text>
+                              </View>
+                            )}
+                            {coughs > 0 && (
+                              <View style={[s.chip, s.chipCough]}>
+                                <Text style={[s.chipTxt, s.chipCoughTxt]}>
+                                  😤 {coughs} {coughs === 1 ? 'Cough' : 'Coughs'}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+                        <View style={s.actDivider} />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </View>
           </>
-        )}
+        ) : null}
+
+        <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Add feed button — only on today */}
+      {/* ── FAB (today only) ── */}
       {isToday && (
-        <View style={[styles.addBar, { backgroundColor: c.bg, borderTopColor: c.border }]}>
-          <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/feed' as any)}>
-            <Text style={styles.addBtnText}>＋ Add feed</Text>
+        <View style={s.fabBar}>
+          <TouchableOpacity
+            style={s.fab}
+            activeOpacity={0.85}
+            onPress={() => router.push('/feed' as any)}
+          >
+            <Text style={s.fabPlus}>＋</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -267,191 +286,212 @@ export default function DayScreen() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Session card sub-component
-// ---------------------------------------------------------------------------
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-function SessionCard({
-  session,
-  events,
-  isDark,
-  c,
-  onPress,
-}: {
-  session: FeedingSessionResponse;
-  events: DayViewEvent[];
-  isDark: boolean;
-  c: typeof light;
-  onPress: () => void;
-}) {
-  const dur = durationStr(session.startedAt, session.endedAt);
-  const timeRange = `${fmtTime(session.startedAt)}${session.endedAt ? ` – ${fmtTime(session.endedAt)}` : ' – ongoing'}`;
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: C.background },
 
-  return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={onPress}
-      style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}
-    >
-      <View style={styles.cardHead}>
-        <Text style={[styles.cardTime, { color: c.text }]}>{timeRange}</Text>
-        <View style={[styles.badge, { backgroundColor: isDark ? '#3A3A3C' : '#f0f0f0' }]}>
-          <Text style={[styles.badgeText, { color: c.textSecondary }]}>
-            {dur ?? 'active'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Segment tags */}
-      <View style={styles.tagRow}>
-        {session.segments.map((seg) => {
-          const { label, type } = segmentLabel(seg.side, seg.startedAt, seg.endedAt, seg.volumeMl);
-          return (
-            <View key={seg.id} style={[styles.tag, tagStyles[type]]}>
-              <Text style={[styles.tagText, tagTextStyles[type]]}>{label}</Text>
-            </View>
-          );
-        })}
-      </View>
-
-      {/* Event chips */}
-      {events.length > 0 && (
-        <View style={[styles.eventRow, { borderTopColor: c.border }]}>
-          {events.map((ev) => {
-            const tType = eventTagType(ev.type);
-            return (
-              <View key={ev.id} style={[styles.tag, tagStyles[tType]]}>
-                <Text style={[styles.tagText, tagTextStyles[tType]]}>
-                  {eventEmoji(ev.type)} {fmtTime(ev.timestamp)}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Theme palettes
-// ---------------------------------------------------------------------------
-const light = {
-  bg: '#fff',
-  text: '#1a1a1a',
-  textSecondary: '#888',
-  card: '#fafafa',
-  border: '#eee',
-};
-
-const dark = {
-  bg: '#1C1C1E',
-  text: '#F5F5F5',
-  textSecondary: '#999',
-  card: '#2C2C2E',
-  border: '#38383A',
-};
-
-// ---------------------------------------------------------------------------
-// Tag colour maps
-// ---------------------------------------------------------------------------
-const tagStyles: Record<string, object> = {
-  left: { backgroundColor: '#e8f0fe' },
-  right: { backgroundColor: '#fce8e6' },
-  bottle: { backgroundColor: '#e6f4ea' },
-  burp: { backgroundColor: '#fff3e0' },
-  spill: { backgroundColor: '#e3f2fd' },
-  cough: { backgroundColor: '#fce4ec' },
-};
-
-const tagTextStyles: Record<string, object> = {
-  left: { color: '#1967d2' },
-  right: { color: '#c5221f' },
-  bottle: { color: '#137333' },
-  burp: { color: '#e65100' },
-  spill: { color: '#1565c0' },
-  cough: { color: '#c62828' },
-};
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-const styles = StyleSheet.create({
-  screen: { flex: 1 },
-
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
-  dateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  navArrow: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  navArrowText: { fontSize: 28, fontWeight: '300', lineHeight: 32 },
-  dateCenter: { flex: 1, alignItems: 'center' },
-  todayBadge: { fontSize: 11, fontWeight: '600', marginTop: 1 },
-  headerTitle: { fontSize: 22, fontWeight: '700' },
-  headerSub: { fontSize: 13, marginTop: 2, textAlign: 'center' },
-
-  content: { flex: 1, paddingHorizontal: 16 },
-
-  // Loading / error
-  center: { paddingVertical: 60, alignItems: 'center' },
-  errorBox: {
-    backgroundColor: '#fce4ec',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 10,
-    alignItems: 'center',
+  // App bar
+  appBar: {
+    height: 56,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: C.outlineVariant + '33',
   },
-  errorBoxDark: { backgroundColor: '#3a1a1a' },
-  errorText: { color: '#c62828', fontSize: 13, marginBottom: 8, textAlign: 'center' },
-  retryText: { color: '#1967d2', fontSize: 13, fontWeight: '600' },
+  brand: { fontSize: 20, fontWeight: '700', color: C.brand },
 
-  // Section header
-  section: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+  // Calendar
+  calSection: { paddingTop: 16, paddingHorizontal: 24 },
+  calHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  monthLabel: { fontSize: 18, fontWeight: '600', color: C.onSurface },
+  navBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  navBtnText: { fontSize: 24, color: C.onSurfaceVariant },
+  dayStrip: { gap: 8, paddingVertical: 4 },
+  dayTile: {
+    width: 52,
+    height: 76,
+    borderRadius: 16,
+    backgroundColor: C.surfaceLow,
+    borderWidth: 1,
+    borderColor: C.outlineVariant + '40',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayTileSel: {
+    backgroundColor: C.primary,
+    borderColor: C.primary,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  dayAbbr: {
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 0.5,
-    marginTop: 16,
+    textTransform: 'uppercase',
+    color: C.onSurfaceVariant,
+  },
+  dayAbbrSel: { color: '#fff' },
+  dayNum: { fontSize: 20, fontWeight: '700', color: C.onSurface, marginTop: 2 },
+  dayNumSel: { color: '#fff' },
+  todayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: C.primary,
+    marginTop: 4,
+  },
+
+  // Error
+  errorBox: {
+    margin: 24,
+    padding: 16,
+    backgroundColor: C.errorContainer,
+    borderRadius: 16,
+  },
+  errorText: { color: C.onErrorContainer, textAlign: 'center', fontSize: 14 },
+
+  // Summary card
+  summaryWrap: {
+    marginHorizontal: 24,
+    marginTop: 20,
+    marginBottom: 8,
+    backgroundColor: C.surfaceHigh,
+    borderRadius: 20,
+    padding: 20,
+  },
+  summaryCard: {
+    backgroundColor: C.surfaceLowest,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: C.outlineVariant + '33',
+  },
+  summaryLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    color: C.outline,
     marginBottom: 8,
   },
+  summaryCount: {
+    fontSize: 52,
+    fontWeight: '700',
+    color: C.primary,
+    lineHeight: 56,
+  },
 
-  // Feed cards
-  card: { borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
-  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  cardTime: { fontWeight: '600', fontSize: 14 },
-  badge: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8 },
-  badgeText: { fontSize: 11 },
+  // Activity section
+  actSection: { paddingHorizontal: 24, paddingTop: 16 },
+  actHeader: { fontSize: 18, fontWeight: '700', color: C.onSurface, marginBottom: 20 },
 
-  // Tags
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
-  tag: { borderRadius: 8, paddingVertical: 3, paddingHorizontal: 9 },
-  tagText: { fontSize: 10, fontWeight: '500' },
-
-  // Event chips row
-  eventRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 6, paddingTop: 7, borderTopWidth: 1 },
+  // Activity items — timeline layout
+  actItem: { flexDirection: 'row', gap: 16 },
+  actLeft: { alignItems: 'center', width: 40 },
+  actIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: C.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actIconText: { fontSize: 20 },
+  timelineLine: {
+    flex: 1,
+    width: 2,
+    backgroundColor: C.outlineVariant + '33',
+    marginTop: 4,
+    borderRadius: 1,
+    minHeight: 24,
+  },
+  actBody: { flex: 1, paddingBottom: 20, minHeight: 40 },
+  actRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  actName: { fontSize: 16, fontWeight: '600', color: C.onSurface, flex: 1, marginRight: 8 },
+  actTime: { fontSize: 13, fontWeight: '500', color: C.outline },
+  actDur: { fontSize: 14, color: C.onSurfaceVariant, marginTop: 4 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  chip: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999 },
+  chipTxt: { fontSize: 11, fontWeight: '600' },
+  chipBurp: { backgroundColor: C.secondaryContainer },
+  chipBurpTxt: { color: C.onSecondaryContainer },
+  chipSpill: { backgroundColor: C.tertiaryContainer + '55' },
+  chipSpillTxt: { color: C.onTertiaryContainer },
+  chipCough: { backgroundColor: C.errorContainer },
+  chipCoughTxt: { color: C.onErrorContainer },
+  actDivider: {
+    height: 1,
+    backgroundColor: C.outlineVariant + '30',
+    marginTop: 20,
+  },
 
   // Empty state
-  emptyState: { paddingVertical: 40, alignItems: 'center' },
-  emptyText: { fontSize: 14 },
+  empty: { alignItems: 'center', paddingVertical: 48 },
+  emptyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: C.surfaceHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyIcon: { fontSize: 36 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: C.onSurface,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyBody: {
+    fontSize: 14,
+    color: C.onSurfaceVariant,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 16,
+  },
 
-  // Add event button
-  addBar: {
+  // FAB
+  fabBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 88,
+    paddingBottom: 36,
+    paddingTop: 12,
+    alignItems: 'center',
+    backgroundColor: C.background + 'CC',
+    borderTopWidth: 1,
+    borderTopColor: C.outlineVariant + '33',
+  },
+  fab: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: C.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 16,
-    borderTopWidth: 1,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  addBtn: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  fabPlus: {
+    fontSize: 32,
+    color: C.onPrimary,
+    lineHeight: 36,
+    fontWeight: '300',
   },
-  addBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });
