@@ -1,11 +1,15 @@
 /**
  * Feed screen — BabyLuki
  *
- * State machine:
+ * State machine (live mode):
  *   'new'     — no session yet. Show hero, method grid, Start Method button.
  *   'active'  — a segment is running. Show circular timer + Stop button.
  *   'between' — segment stopped, timer reset to 00:00. Show method grid,
  *               quick-log pills, and Start Method / Finish Feeding buttons.
+ *
+ * Past mode (phase === 'new' only):
+ *   Toggle "Log Past Feed" to enter date / time / duration manually and save
+ *   a completed session in one step.
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
@@ -16,6 +20,8 @@ import {
   ScrollView,
   Alert,
   Image,
+  Switch,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -81,6 +87,7 @@ const METHODS: { side: SegmentSide; label: string; icon: string }[] = [
 export default function FeedScreen() {
   const router = useRouter();
 
+  // ── Live session state ──
   const [session, setSession] = useState<FeedingSessionResponse | null>(null);
   const [activeSeg, setActiveSeg] = useState<FeedingSegmentResponse | null>(null);
   const [events, setEvents] = useState<FeedingEventResponse[]>([]);
@@ -89,6 +96,13 @@ export default function FeedScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [loading, setLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Past feed state ──
+  const [pastMode, setPastMode] = useState(false);
+  const [pastHour, setPastHour] = useState(() => { const h = new Date().getHours() % 12; return h === 0 ? 12 : h; });
+  const [pastMinute, setPastMinute] = useState(() => Math.floor(new Date().getMinutes() / 5) * 5);
+  const [pastAmPm, setPastAmPm] = useState<'AM' | 'PM'>(() => new Date().getHours() < 12 ? 'AM' : 'PM');
+  const [pastDuration, setPastDuration] = useState('');
 
   const startTimer = useCallback((from: Date) => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -102,7 +116,7 @@ export default function FeedScreen() {
   // The side that should appear selected in the method grid
   const selectedSide: SegmentSide = phase === 'active' && activeSeg ? activeSeg.side : pendingMethod;
 
-  // ── Actions ──
+  // ── Live actions ──
 
   const startSegment = useCallback((side: SegmentSide) => {
     setLoading(true);
@@ -143,7 +157,7 @@ export default function FeedScreen() {
     } finally {
       setLoading(false);
     }
-  }, [activeSeg, session, startTimer]);
+  }, [activeSeg]);
 
   const endFeed = useCallback(() => {
     if (!session) return;
@@ -175,6 +189,47 @@ export default function FeedScreen() {
     }
   }, []);
 
+  // Returns true if the 12-hour time + ampm is strictly in the future
+  const wouldBeFuture = useCallback((h: number, m: number, ampm: 'AM' | 'PM'): boolean => {
+    const hour24 = (h % 12) + (ampm === 'PM' ? 12 : 0);
+    const t = new Date();
+    t.setHours(hour24, m, 0, 0);
+    return t > new Date();
+  }, []);
+
+  // ── Past feed action ──
+
+  const savePastFeed = useCallback(() => {
+    const mins = parseInt(pastDuration, 10);
+    if (!pastDuration || isNaN(mins) || mins <= 0) {
+      Alert.alert('Missing info', 'Please enter a duration greater than 0 minutes.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const hour24 = (pastHour % 12) + (pastAmPm === 'PM' ? 12 : 0);
+      const base = new Date();
+      base.setHours(hour24, pastMinute, 0, 0);
+      const startedAt = base.toISOString();
+      const endedAt = new Date(base.getTime() + mins * 60_000).toISOString();
+
+      // Create session → segment → end both immediately
+      const s = db.startSession(startedAt);
+      const seg = db.addSegment(s.id, pendingMethod, startedAt);
+      db.stopSegment(seg.id, endedAt);
+      db.endSession(s.id, endedAt);
+
+      // Reset past mode form and return home
+      setPastMode(false);
+      setPastDuration('');
+      router.navigate('/');
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'Failed to save');
+    } finally {
+      setLoading(false);
+    }
+  }, [pastHour, pastMinute, pastAmPm, pastDuration, pendingMethod, router]);
+
   const completedSegs = session?.segments.filter(s => s.endedAt && s.id !== activeSeg?.id) ?? [];
 
   // ── Render ──
@@ -194,43 +249,173 @@ export default function FeedScreen() {
         style={s.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.contentInner}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* ── Hero / Timer area ── */}
-        <View style={s.heroArea}>
-          {phase === 'new' ? (
-            <>
-              <View style={s.heroIconWrap}>
-                <Image
-                  source={require('@/assets/images/start_feed.png')}
-                  style={s.heroImage}
-                  resizeMode="cover"
-                />
-              </View>
-              <Text style={s.heroTitle}>Time to Feed?</Text>
-              <Text style={s.heroSub}>Select a method and tap Start</Text>
-            </>
-          ) : (
-            /* Timer ring — shown in 'active' and 'between' phases */
-            <>
-              <View style={s.timerRing}>
-                {phase === 'active' && (
-                  <Text style={s.timerStatusLabel}>ACTIVE SESSION</Text>
+        {/* ── Hero / Timer area — hidden in past mode ── */}
+        {!pastMode && (
+          <View style={s.heroArea}>
+            {phase === 'new' ? (
+              <>
+                <View style={s.heroIconWrap}>
+                  <Image
+                    source={require('@/assets/images/start_feed.png')}
+                    style={s.heroImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <Text style={s.heroTitle}>Time to Feed?</Text>
+                <Text style={s.heroSub}>Select a method and tap Start</Text>
+              </>
+            ) : (
+              /* Timer ring — shown in 'active' and 'between' phases */
+              <>
+                <View style={s.timerRing}>
+                  {phase === 'active' && (
+                    <Text style={s.timerStatusLabel}>ACTIVE SESSION</Text>
+                  )}
+                  <Text style={s.timerDisplay}>{fmtTimer(elapsed)}</Text>
+                  <Text style={s.timerMethodLabel}>
+                    {activeSeg
+                      ? sideName(activeSeg.side)
+                      : completedSegs.length > 0
+                        ? sideName(completedSegs[completedSegs.length - 1].side)
+                        : ''}
+                  </Text>
+                </View>
+                {phase === 'between' && (
+                  <Text style={s.heroSub}>Select feeding method and start</Text>
                 )}
-                <Text style={s.timerDisplay}>{fmtTimer(elapsed)}</Text>
-                <Text style={s.timerMethodLabel}>
-                  {activeSeg
-                    ? sideName(activeSeg.side)
-                    : completedSegs.length > 0
-                      ? sideName(completedSegs[completedSegs.length - 1].side)
-                      : ''}
-                </Text>
+              </>
+            )}
+          </View>
+        )}
+
+        {/* ── Log Past Feed card — only available with no active session ── */}
+        {phase === 'new' && (
+          <View style={s.pastCard}>
+            {/* Toggle row */}
+            <View style={s.pastCardHeader}>
+              <View style={s.pastCardHeaderLeft}>
+                <Text style={s.pastCardIcon}>🕐</Text>
+                <Text style={s.pastCardLabel}>Log Past Feed</Text>
               </View>
-              {phase === 'between' && (
-                <Text style={s.heroSub}>Select feeding method and start</Text>
-              )}
-            </>
-          )}
-        </View>
+              <Switch
+                value={pastMode}
+                onValueChange={val => {
+                  setPastMode(val);
+                  // Reset time to now when opening
+                  if (val) {
+                    const now = new Date();
+                    const h = now.getHours() % 12;
+                    setPastHour(h === 0 ? 12 : h);
+                    setPastMinute(Math.floor(now.getMinutes() / 5) * 5);
+                    setPastAmPm(now.getHours() < 12 ? 'AM' : 'PM');
+                    setPastDuration('');
+                  }
+                }}
+                trackColor={{ false: C.outlineVariant + '88', true: C.primary }}
+                thumbColor={C.surfaceLowest}
+                ios_backgroundColor={C.outlineVariant + '88'}
+              />
+            </View>
+
+            {/* Expanded fields */}
+            {pastMode && (
+              <View style={s.pastFields}>
+                {/* Time */}
+                <View style={s.pastRow}>
+                  <Text style={s.pastFieldLabel}>START TIME</Text>
+                  <View style={s.pastTimePicker}>
+                    {/* Hours (1–12) */}
+                    <View style={s.pastTimeUnit}>
+                      <TouchableOpacity
+                        style={s.pastStepper}
+                        onPress={() => {
+                          const next = pastHour === 12 ? 1 : pastHour + 1;
+                          if (!wouldBeFuture(next, pastMinute, pastAmPm)) setPastHour(next);
+                        }}
+                      >
+                        <Text style={s.pastStepperTxt}>▲</Text>
+                      </TouchableOpacity>
+                      <Text style={s.pastTimeValue}>{String(pastHour)}</Text>
+                      <TouchableOpacity
+                        style={s.pastStepper}
+                        onPress={() => setPastHour(h => h === 1 ? 12 : h - 1)}
+                      >
+                        <Text style={s.pastStepperTxt}>▼</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={s.pastTimeColon}>:</Text>
+                    {/* Minutes */}
+                    <View style={s.pastTimeUnit}>
+                      <TouchableOpacity
+                        style={s.pastStepper}
+                        onPress={() => {
+                          const next = (pastMinute + 5) % 60;
+                          if (!wouldBeFuture(pastHour, next, pastAmPm)) setPastMinute(next);
+                        }}
+                      >
+                        <Text style={s.pastStepperTxt}>▲</Text>
+                      </TouchableOpacity>
+                      <Text style={s.pastTimeValue}>{String(pastMinute).padStart(2, '0')}</Text>
+                      <TouchableOpacity
+                        style={s.pastStepper}
+                        onPress={() => setPastMinute(m => (m - 5 + 60) % 60)}
+                      >
+                        <Text style={s.pastStepperTxt}>▼</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {/* AM / PM toggle */}
+                    <View style={s.ampmToggle}>
+                      {(['AM', 'PM'] as const).map(period => {
+                        const blocked = wouldBeFuture(pastHour, pastMinute, period);
+                        return (
+                          <TouchableOpacity
+                            key={period}
+                            style={[s.ampmBtn, pastAmPm === period && s.ampmBtnSel, blocked && s.ampmBtnDisabled]}
+                            onPress={() => { if (!blocked) setPastAmPm(period); }}
+                          >
+                            <Text style={[s.ampmBtnTxt, pastAmPm === period && s.ampmBtnTxtSel, blocked && s.ampmBtnTxtDisabled]}>
+                              {period}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Duration */}
+                <View style={s.pastRow}>
+                  <Text style={s.pastFieldLabel}>DURATION (MIN)</Text>
+                  <View style={s.pastDurationRow}>
+                    <TouchableOpacity
+                      style={s.pastDurationBtn}
+                      onPress={() => setPastDuration(d => String(Math.max(1, (parseInt(d) || 0) - 5)))}
+                    >
+                      <Text style={s.pastDurationBtnTxt}>−</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      style={s.pastDurationInput}
+                      value={pastDuration}
+                      onChangeText={t => setPastDuration(t.replace(/[^0-9]/g, ''))}
+                      keyboardType="number-pad"
+                      placeholder="0"
+                      placeholderTextColor={C.outlineVariant}
+                      textAlign="center"
+                    />
+                    <TouchableOpacity
+                      style={s.pastDurationBtn}
+                      onPress={() => setPastDuration(d => String((parseInt(d) || 0) + 5))}
+                    >
+                      <Text style={s.pastDurationBtnTxt}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* ── Method selection grid ── */}
         <View style={s.gridSection}>
@@ -259,38 +444,25 @@ export default function FeedScreen() {
           </View>
         </View>
 
-        {/* ── Quick-log pills ── */}
+        {/* ── Quick-log pills (live session only) ── */}
         {phase !== 'new' && (
           <View style={s.quickLog}>
-            <TouchableOpacity
-              style={[s.qPill, s.qPillBurp]}
-              activeOpacity={0.7}
-              onPress={() => logEvent('BURP')}
-            >
+            <TouchableOpacity style={[s.qPill, s.qPillBurp]} activeOpacity={0.7} onPress={() => logEvent('BURP')}>
               <Text style={[s.qPillTxt, s.qPillBurpTxt]}>💨 Burp</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.qPill, s.qPillSpill]}
-              activeOpacity={0.7}
-              onPress={() => logEvent('SPILL')}
-            >
+            <TouchableOpacity style={[s.qPill, s.qPillSpill]} activeOpacity={0.7} onPress={() => logEvent('SPILL')}>
               <Text style={[s.qPillTxt, s.qPillSpillTxt]}>💧 Spill</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.qPill, s.qPillCough]}
-              activeOpacity={0.7}
-              onPress={() => logEvent('COUGH')}
-            >
+            <TouchableOpacity style={[s.qPill, s.qPillCough]} activeOpacity={0.7} onPress={() => logEvent('COUGH')}>
               <Text style={[s.qPillTxt, s.qPillCoughTxt]}>😤 Cough</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ── Feeding events log ── */}
+        {/* ── Feeding events log (live session only) ── */}
         {(completedSegs.length > 0 || events.length > 0) && (
           <View style={s.logSection}>
             <Text style={s.logHeader}>FEEDING EVENTS</Text>
-
             {completedSegs.map(seg => (
               <View key={seg.id} style={s.logItem}>
                 <View style={[s.logDot, { backgroundColor: C.primaryContainer }]} />
@@ -305,7 +477,6 @@ export default function FeedScreen() {
                 </View>
               </View>
             ))}
-
             {events.map(ev => (
               <View key={ev.id} style={s.logItem}>
                 <View style={[s.logDot, {
@@ -329,7 +500,19 @@ export default function FeedScreen() {
       {/* ── Footer action buttons ── */}
       <View style={s.footer}>
         <View style={s.footerRow}>
-          {phase === 'active' ? (
+          {pastMode ? (
+            /* Past mode: single Save Past Feed button */
+            <TouchableOpacity
+              style={[s.footBtn, s.footBtnLeft, { flex: 1 }]}
+              disabled={loading}
+              activeOpacity={0.8}
+              onPress={savePastFeed}
+            >
+              <Text style={[s.footBtnTxt, { color: C.onSecondary }]}>
+                {loading ? '…' : 'Save Past Feed'}
+              </Text>
+            </TouchableOpacity>
+          ) : phase === 'active' ? (
             /* Active: single full-width Stop button */
             <TouchableOpacity
               style={[s.footBtn, s.footBtnRight, { flex: 1 }]}
@@ -354,7 +537,6 @@ export default function FeedScreen() {
                   {loading ? '…' : 'Start Method'}
                 </Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={[s.footBtn, s.footBtnRight, !session && s.footBtnDisabled]}
                 disabled={!session || loading}
@@ -434,7 +616,7 @@ const s = StyleSheet.create({
     height: 224,
     borderRadius: 112,
     borderWidth: 4,
-    borderColor: C.primary + '2E', // ~18% opacity
+    borderColor: C.primary + '2E',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: C.surfaceLowest,
@@ -463,6 +645,120 @@ const s = StyleSheet.create({
     fontWeight: '500',
     color: C.onSurfaceVariant,
     marginTop: 4,
+  },
+
+  // Log Past Feed card
+  pastCard: {
+    marginHorizontal: 24,
+    marginTop: 24,
+    marginBottom: 16,
+    backgroundColor: C.surfaceLow,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.outlineVariant + '44',
+    overflow: 'hidden',
+  },
+  pastCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  pastCardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  pastCardIcon: { fontSize: 18 },
+  pastCardLabel: { fontSize: 14, fontWeight: '600', color: C.onSurface },
+  pastFields: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: C.outlineVariant + '33',
+    paddingTop: 16,
+  },
+  pastRow: { gap: 8 },
+  pastFieldLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: C.outline,
+  },
+
+  // Time stepper
+  pastTimePicker: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pastTimeUnit: { alignItems: 'center', gap: 4 },
+  pastStepper: {
+    width: 40,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: C.surfaceLowest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.outlineVariant + '55',
+  },
+  pastStepperTxt: { fontSize: 11, color: C.primary, fontWeight: '700' },
+  pastTimeValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: C.onSurface,
+    fontVariant: ['tabular-nums'],
+    width: 40,
+    textAlign: 'center',
+  },
+  pastTimeColon: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: C.onSurfaceVariant,
+    marginBottom: 4,
+  },
+  ampmToggle: {
+    flexDirection: 'column',
+    gap: 6,
+    marginLeft: 8,
+  },
+  ampmBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: C.surfaceLowest,
+    borderWidth: 1.5,
+    borderColor: C.outlineVariant + '66',
+    alignItems: 'center',
+  },
+  ampmBtnSel: {
+    borderColor: C.primary,
+    backgroundColor: C.primary + '12',
+  },
+  ampmBtnTxt: { fontSize: 12, fontWeight: '700', color: C.onSurfaceVariant },
+  ampmBtnTxtSel: { color: C.primary },
+  ampmBtnDisabled: { opacity: 0.35 },
+  ampmBtnTxtDisabled: { color: C.outline },
+
+  // Duration input
+  pastDurationRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  pastDurationBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: C.surfaceLowest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: C.outlineVariant + '66',
+  },
+  pastDurationBtnTxt: { fontSize: 20, fontWeight: '600', color: C.primary, lineHeight: 24 },
+  pastDurationInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: C.surfaceLowest,
+    borderWidth: 1.5,
+    borderColor: C.outlineVariant + '66',
+    fontSize: 18,
+    fontWeight: '700',
+    color: C.onSurface,
   },
 
   // Method grid
@@ -510,19 +806,8 @@ const s = StyleSheet.create({
   },
 
   // Quick-log pills
-  quickLog: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 24,
-    marginTop: 20,
-  },
-  qPill: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 999,
-  },
+  quickLog: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginTop: 20 },
+  qPill: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 999 },
   qPillTxt: { fontSize: 13, fontWeight: '700' },
   qPillBurp: { backgroundColor: C.secondaryContainer },
   qPillBurpTxt: { color: C.onSecondaryContainer },
@@ -541,12 +826,7 @@ const s = StyleSheet.create({
     color: C.outline,
     marginBottom: 14,
   },
-  logItem: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 14,
-    alignItems: 'flex-start',
-  },
+  logItem: { flexDirection: 'row', gap: 12, marginBottom: 14, alignItems: 'flex-start' },
   logDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
   logBody: { flex: 1 },
   logTitle: { fontSize: 14, fontWeight: '600', color: C.onSurface },
@@ -562,13 +842,7 @@ const s = StyleSheet.create({
     backgroundColor: C.surfaceLow + 'CC',
   },
   footerRow: { flexDirection: 'row', gap: 12 },
-  footBtn: {
-    flex: 1,
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  footBtn: { flex: 1, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   footBtnLeft: { backgroundColor: C.secondary },
   footBtnRight: { backgroundColor: C.errorContainer },
   footBtnRightTxt: { color: C.onErrorContainer },
